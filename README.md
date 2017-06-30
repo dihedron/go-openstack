@@ -1,2 +1,2 @@
 # go-openstack
-A porting of the Python SDK for OpenStack to Golang. 
+A porting of the OpenStack Python SDK to Golang. 
