@@ -1,0 +1,1 @@
+curl -i -H "Content-Type: application/json" -d '{ "auth": { "identity": {"methods": ["password"], "password": { "user": {"name": "funto", "domain": {"id": "default"},"password": "ubuntu"}}}}}' "http://horizon.zeuscoll.bankit.it:5000/v3/auth/tokens"
