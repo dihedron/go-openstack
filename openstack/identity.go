@@ -11,8 +11,7 @@ import (
 	"github.com/dihedron/go-openstack/log"
 )
 
-// IdentityService implements the identity functionalities
-// of OpenStack.
+// IdentityService implements the identity functionalities of OpenStack.
 type IdentityService struct {
 	Service
 }
@@ -52,8 +51,8 @@ func (s *Connection) RegisterIdentityService(endpoint string) error {
 	return nil
 }
 
-// AuthOptions represents the parameters passed to the API to
-// authenticate against the remote service.
+// AuthOptions represents the parameters passed to the API to authenticate against
+// the remote service.
 type AuthOptions struct {
 	AuthURL    *string
 	UserID     *string
@@ -65,53 +64,53 @@ type AuthOptions struct {
 	DomainName *string
 }
 
+/*
 // NewAuthOptions returns an empty set of AuthOptions.
 func NewAuthOptions() *AuthOptions {
 	return &AuthOptions{}
 }
+*/
 
 // FromEnv initialises the given AuthOptions structure using
 // information from the environment; no validation is performed;
 // unset variables leave a nil reference whereas empty variables
 // have a reference to an empty value.
-func (o *AuthOptions) FromEnv() *AuthOptions {
+func AuthOptionsFromEnv() *AuthOptions {
+	opts = &AuthOptions{}
 	if value, ok := os.LookupEnv("OS_AUTH_URL"); ok {
-		o.AuthURL = String(value)
+		opts.AuthURL = String(value)
 	}
 	if value, ok := os.LookupEnv("OS_USERID"); ok {
-		o.UserID = String(value)
+		opts.UserID = String(value)
 	}
 	if value, ok := os.LookupEnv("OS_USERNAME"); ok {
-		o.UserName = String(value)
+		opts.UserName = String(value)
 	}
 	if value, ok := os.LookupEnv("OS_PASSWORD"); ok {
-		o.Password = String(value)
+		opts.Password = String(value)
 	}
 	if value, ok := os.LookupEnv("OS_TENANT_ID"); ok {
-		o.TenantID = String(value)
+		opts.TenantID = String(value)
 	}
 	if value, ok := os.LookupEnv("OS_TENANT_NAME"); ok {
-		o.TenantName = String(value)
+		opts.TenantName = String(value)
 	}
 	if value, ok := os.LookupEnv("OS_DOMAIN_ID"); ok {
-		o.DomainID = String(value)
+		opts.DomainID = String(value)
 	}
 	if value, ok := os.LookupEnv("OS_DOMAIN_NAME"); ok {
-		o.DomainName = String(value)
+		opts.DomainName = String(value)
 	}
-	return o
+	return opts
 }
 
 // IsValid returns whether the structure contains the minimum
 // information needed to attempt an authentication request.
-func (o *AuthOptions) IsValid() (bool, error) {
-	if o == nil {
-		return false, ErrorInvalidReference
-	}
-	if o.AuthURL == nil || *o.AuthURL == "" {
+func (o AuthOptions) IsValid() (bool, error) {
+	if o.AuthURL == nil || o.AuthURL == "" {
 		return false, ErrorInvalidInput.Where("AuthURL", "must not be null")
 	}
-	if (o.UserName == nil || *o.UserName == "") && (o.UserID == nil || *o.UserID == "") {
+	if (o.UserName == nil || o.UserName == "") && (o.UserID == nil || o.UserID == "") {
 		return false, ErrorInvalidInput.Where("UserID or UserName", "at least one must not be null")
 	}
 	if o.Password == nil || *o.Password == "" {
@@ -120,7 +119,6 @@ func (o *AuthOptions) IsValid() (bool, error) {
 	return true, nil
 }
 
-/*
 func (i *IdentityService) AuthenticateByPassword(opts *AuthOptions) error {
 	if opts == nil || opts.AuthURL == nil {
 		return ErrorInvalidInput
@@ -145,7 +143,6 @@ func (i *IdentityService) AuthenticateByPassword(opts *AuthOptions) error {
 
 	return nil
 }
-*/
 
 /*
 {

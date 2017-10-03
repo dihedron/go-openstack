@@ -1,6 +1,7 @@
 // Copyright 2017 Andrea Funtò. All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package openstack
 
 import (
@@ -15,7 +16,7 @@ import (
 // Service is the base struct for all OpenStack service providers.
 type Service struct {
 	// The base OpenStack session; this will contain a reference to
-	// the HTTP client used to make the acctual requests.
+	// the HTTP client used to make the actual requests.
 	session *Connection
 	// The token used to authenticate requests.
 	token *string
@@ -66,7 +67,7 @@ var VersionStatus = map[string]bool{
 // the given service endpoint.
 //
 // Any OpenStack service enpoint (Nova, Keystone, Glance etc.)
-// exposes severeal version of its management APIs; in order for the
+// exposes several version of its management APIs; in order for the
 // client to be able to negotiate the API version with the server
 // prior to authenticating (as authencìtication itself can expose
 // mutliple API versions), this method leverages the only API that
@@ -75,7 +76,7 @@ func (s *Service) GetVersions() ([]Version, error) {
 
 	res, err := s.session.client.Get(s.base, nil)
 	if err != nil {
-		log.Printf("[E] error connecting to service %s: %v", s.base, err)
+		log.Errorf("error connecting to service %s: %v", s.base, err)
 		return nil, err
 	}
 	defer res.Body.Close()
@@ -96,10 +97,10 @@ func (s *Service) GetVersions() ([]Version, error) {
 		} `json:"versions"`
 	}
 	if err := json.NewDecoder(buffer).Decode(&response); err != nil {
-		log.Printf("[E] error decoding response body into JSON: %v", err)
+		log.Errorf("error decoding response body into JSON: %v", err)
 		return nil, err
 	}
-	log.Printf("[I] version retrieved: %v", response.Data.Versions)
+	log.Infof("version retrieved: %v", response.Data.Versions)
 	// register the set of supported versions into the Service
 	s.supportedVersions = response.Data.Versions
 	return response.Data.Versions, nil
