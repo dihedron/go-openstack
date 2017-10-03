@@ -43,6 +43,9 @@ const (
 )
 
 var (
+	// Success represents a successful outcome of an API call.
+	Success = Errorf("Success").Where(StatusCode, 200)
+
 	// ErrorInvalidReference is used whenever an invalid object
 	// reference is passed to an API.
 	ErrorInvalidReference = Errorf("Invalid object reference")
