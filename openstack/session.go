@@ -1,23 +1,26 @@
 // Copyright 2017 Andrea Funtò. All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
+
 package openstack
 
 import (
-	"github.com/ddliu/go-httpclient"
+	"net/http"
+	"net/url"
 )
 
-// Connection represents the OpenStack Connection.
+// Connection represents a connection to OpenStack.
 type Connection struct {
 
 	// HTTP client used to communicate with the API.
-	client *httpclient.HttpClient
-	/*
-		// Base URL for API requests. Defaults to the public GitLab API, but can be
-		// set to a domain endpoint to use with aself hosted GitLab server. baseURL
-		// should always be specified with a trailing slash.
-		baseURL *url.URL
+	Client *http.Client
 
+	// CatalogueURL is the base URL for catalog API requests; from this URL, it should
+	// be possible to reconstruct the whole set of enabled OpenStack services,
+	// their versions and endpoints.
+	CatalogueURL *url.URL
+
+	/*
 		// token type used to make authenticated API calls.
 		tokenType tokenType
 
@@ -28,7 +31,7 @@ type Connection struct {
 	// Identity is the remote service providing user authentication and
 	// authorization; for details see OpenStack Keystone:
 	// https://developer.openstack.org/api-ref/identity/v3/
-	Identity *IdentityService
+	//Identity *IdentityService
 }
 
 const (
@@ -40,6 +43,7 @@ const (
 	DefaultUserAgent string = "go-openstack"
 )
 
+/*
 // NewDefaultConnection initiates a new OpenStack Connection
 // with the default parameters.
 func NewDefaultConnection() *Connection {
@@ -51,16 +55,19 @@ func NewDefaultConnection() *Connection {
 	}
 
 }
+*/
 
+/*
 // NewConnection initiates a new OpenStack Connection.
-func NewConnection(client *httpclient.HttpClient) *Connection {
+func NewConnection(client *http.Client) *Connection {
 	if client == nil {
-		return NewDefaultConnection()
+		client = http.DefaultClient()
 	}
 	return &Connection{
 		client: client,
 	}
 }
+*/
 
 /*
 // NegotiateVersion queries the base endpoint of an API to choose the most

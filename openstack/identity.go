@@ -71,12 +71,12 @@ func NewAuthOptions() *AuthOptions {
 }
 */
 
-// FromEnv initialises the given AuthOptions structure using
+// AuthOptionsFromEnv initialises the given AuthOptions structure using
 // information from the environment; no validation is performed;
 // unset variables leave a nil reference whereas empty variables
 // have a reference to an empty value.
 func AuthOptionsFromEnv() *AuthOptions {
-	opts = &AuthOptions{}
+	opts := &AuthOptions{}
 	if value, ok := os.LookupEnv("OS_AUTH_URL"); ok {
 		opts.AuthURL = String(value)
 	}
