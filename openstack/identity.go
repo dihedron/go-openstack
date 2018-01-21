@@ -21,14 +21,16 @@ type Scope struct {
 }
 
 type Project struct {
-	Id *string `json:"id,omitemty"`
+	ID     *string `json:"id,omitemty"`
+	Name   *string `json:"name,omitempty"`
+	Domain *Domain `json:"domain,omitempty"`
 }
 type Password struct {
 	User User `json:"user,omitempty"`
 }
 
 type User struct {
-	Id                *string `json:"id,omitempty"`
+	ID                *string `json:"id,omitempty"`
 	Name              *string `json:"name,omitempty"`
 	Domain            *Domain `json:"domain,omitempty"`
 	Password          *string `json:"password,omitempty"`
@@ -36,7 +38,12 @@ type User struct {
 }
 
 type Domain struct {
-	Id   *string `json:"id,omitempty"`
+	ID   *string `json:"id,omitempty"`
+	Name *string `json:"name,omitempty"`
+}
+
+type Role struct {
+	ID   *string `json:"id,omitempty"`
 	Name *string `json:"name,omitempty"`
 }
 
@@ -44,6 +51,7 @@ type Token struct {
 	IssuedAt  *string   `json:"issued_at,omitempty"`
 	ExpiresAt *string   `json:"expires_at,omitempty"`
 	User      *User     `json:"user,omitempty"`
+	Roles     *[]Role   `json:"roles,omitempty"`
 	Methods   *[]string `json:"methods,omitempty"`
 	AuditIds  *[]string `json:"audit_ids,omitempty"`
 }
