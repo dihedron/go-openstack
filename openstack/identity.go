@@ -106,8 +106,8 @@ type User struct {
 	PasswordExpiresAt *string `json:"password_expires_at,omitempty"`
 }
 
-// IdentityAPI represents the identity API providing all services
-// regarding authentication, authentication, role and reosurce management.
+// IdentityAPI represents the identity API providing all services regarding
+// authentication, authorization, role and resource management.
 // See https://developer.openstack.org/api-ref/identity/v3/
 type IdentityAPI struct {
 	factory *sling.Sling
@@ -118,6 +118,10 @@ type IdentityAPI struct {
  * AUTHENTICATION AND TOKEN MANAGEMENT
  */
 
+/*
+ * CREATE TOKEN
+ */
+
 const (
 	// CreateTokenMethodPassword is the constant used for password-based
 	// authentication onto the Keystone server.
@@ -126,10 +130,6 @@ const (
 	// authentication onto the Keystone server.
 	CreateTokenMethodToken string = "token"
 )
-
-/*
- * CREATE TOKEN
- */
 
 // CreateTokenOpts contains the set of parameters and options used to
 // perform an authentication (create an authentication token).
