@@ -145,6 +145,61 @@ type createTokenResponseBody struct {
 // Keystone server and receive a token.
 func (i IdentityAPI) CreateToken(opts *CreateTokenOpts) error {
 
+	query, _ := initCreateTokenRequestQuery(opts)
+
+	// no headers...
+
+	body, _ := initCreateTokenRequestBody(opts)
+
+	log.Debugf("Identity.CreateToken: request body is\n%s\n", log.ToJSON(body))
+
+	if req, err := i.api.New().Post("/identity/v3/auth/tokens").QueryStruct(query).BodyJSON(body).Request(); err == nil {
+		res, err := i.client.Do(req)
+		if err != nil {
+			log.Errorf("Identity.CreateToken: error sending request: %v", err)
+			return err
+		}
+		defer res.Body.Close()
+
+		fmt.Printf("sono qui\n")
+		/*
+			switch res.StatusCode {
+			case 200:
+
+			case 400: // Bad request
+
+			}
+		*/
+
+		body := &createTokenResponseBody{}
+		json.NewDecoder(res.Body).Decode(body)
+
+		log.Debugf("RESPONSE HEADER:\n%s\nRESPONSE BODY:\n%s\n", res.Header.Get("X-Subject-Token"), log.ToJSON(body))
+	} else {
+		log.Errorf("Identity.CreateToken: error sending request: %v\n", err)
+	}
+
+	return nil
+}
+
+// initCreateTokenRequestQuery creates the struct used to pass the request
+// options that go on the query string.
+func initCreateTokenRequestQuery(opts *CreateTokenOpts) (interface{}, error) {
+	return &createTokenRequestQuery{
+		NoCatalog: opts.NoCatalog,
+	}, nil
+}
+
+// initCreateTokenRequestHeaders creates a pmap of header values to be
+// passed to the server along with the request.
+func initCreateTokenRequestHeaders(opts *CreateTokenOpts) (map[string][]string, error) {
+	return map[string][]string{}, nil
+}
+
+// initCreateTokenRequestBody creates the structir representing the request
+// entity; the struct will be automatically serialised to JSON by the client.
+func initCreateTokenRequestBody(opts *CreateTokenOpts) (interface{}, error) {
+
 	body := &createTokenRequestBody{
 		Auth: &Authentication{
 			Identity: &Identity{
@@ -230,28 +285,7 @@ func (i IdentityAPI) CreateToken(opts *CreateTokenOpts) error {
 			body.Auth.Scope = String("unscoped")
 		}
 	}
-	b, _ := json.MarshalIndent(body, "", "  ")
-	log.Debugf("Identity.CreateToken: request body is\n%s\n", b)
-
-	query := &createTokenRequestQuery{
-		NoCatalog: opts.NoCatalog,
-	}
-
-	if req, err := i.api.New().Post("/identity/v3/auth/tokens").QueryStruct(query).BodyJSON(body).Request(); err == nil {
-		res, err := i.client.Do(req)
-		if err != nil {
-			log.Errorf("Identity.CreateToken: error sending request: %v", err)
-			return err
-		}
-		defer res.Body.Close()
-
-		body := &createTokenResponseBody{}
-		json.NewDecoder(res.Body).Decode(body)
-		b, _ := json.MarshalIndent(body, "", "  ")
-		fmt.Printf("RESPONSE HEADER:\n%s\nRESPONSE BODY:\n%s\n", res.Header.Get("X-Subject-Token"), b)
-	}
-
-	return nil
+	return body, nil
 }
 
 /*

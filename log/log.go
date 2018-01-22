@@ -5,6 +5,7 @@
 package log
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -300,4 +301,12 @@ func Printf(format string, args ...interface{}) (int, error) {
 		return Errorf(re.ReplaceAllString(format, ""), args...)
 	}
 	return fmt.Fprintf(GetStream(), format, args...)
+}
+
+// ToJSON converts an object into pretty-printed JSON format.
+func ToJSON(object interface{}) string {
+	if bytes, err := json.MarshalIndent(object, "", "  "); err == nil {
+		return string(bytes)
+	}
+	return ""
 }

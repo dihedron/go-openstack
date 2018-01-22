@@ -26,17 +26,19 @@ func main() {
 	client, _ := openstack.NewDefaultClient(endpoint)
 
 	opts := &openstack.CreateTokenOpts{
-		Method:          openstack.CreateTokenMethodToken,
-		TokenID:         openstack.String("gAAAAABaZgmbPZtoEyuTzJXmggwMAyjLZSiknQJPeR4m1FQaL0dpv1nvvVZvd-B3PORQnRqXrR3OevmRKvMqrXwiam02xElVJXOQHKkExqpTK4kkBnttb-kZRxyS3AJLTLjOr7rxzGP2jw7OwGfOclzNxRIRZF00Ha88ApD0iNFKBczP9PBv4A8"),
-		ScopeDomainName: openstack.String("Default"),
 		/*
-			Method: openstack.CreateTokenMethodPassword,
-			//NoCatalog:      true,
-			UserName:       openstack.String("admin"),
-			UserDomainName: openstack.String("Default"),
-			UserPassword:   openstack.String("password"),
-			ScopeProjectID: openstack.String("0877bbc0712043639e29f026cd56b9c7"),
+			Method: openstack.CreateTokenMethodToken,
+			TokenID:         openstack.String("gAAAAABaZgmbPZtoEyuTzJXmggwMAyjLZSiknQJPeR4m1FQaL0dpv1nvvVZvd-B3PORQnRqXrR3OevmRKvMqrXwiam02xElVJXOQHKkExqpTK4kkBnttb-kZRxyS3AJLTLjOr7rxzGP2jw7OwGfOclzNxRIRZF00Ha88ApD0iNFKBczP9PBv4A8"),
+			ScopeDomainName: openstack.String("Default"),
+		*/
 
+		Method: openstack.CreateTokenMethodPassword,
+		//NoCatalog:      true,
+		UserName:       openstack.String("admin"),
+		UserDomainName: openstack.String("Default"),
+		UserPassword:   openstack.String("password"),
+		//ScopeProjectID: openstack.String("0877bbc0712043639e29f026cd56b9c7"),
+		/*
 			//ScopeProjectName: openstack.String("admin"),
 			//ScopeDomainName:  openstack.String("Default"),
 			//ScopeProjectName: openstack.String("demo"),
