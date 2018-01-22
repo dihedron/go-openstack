@@ -58,12 +58,13 @@ func NewClient(url string, client *http.Client, agent *string) (*Client, error) 
 	}, nil
 }
 
+/*
 type Result struct {
 	Status  int
 	Payload interface{}
 }
 
-/*
+
 type ErrorHandler func(res *http.Response)
 
 func (c *Client) Get(url string, headers *map[string][]string, query interface{}, body interface{}, eh ErrorHandler) (interface{}, error) {

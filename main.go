@@ -25,7 +25,7 @@ func main() {
 
 	client, _ := openstack.NewDefaultClient(endpoint)
 
-	opts := &openstack.CreateTokenOpts{
+	copts := &openstack.CreateTokenOpts{
 		/*
 			Method: openstack.CreateTokenMethodToken,
 			TokenID:         openstack.String("gAAAAABaZgmbPZtoEyuTzJXmggwMAyjLZSiknQJPeR4m1FQaL0dpv1nvvVZvd-B3PORQnRqXrR3OevmRKvMqrXwiam02xElVJXOQHKkExqpTK4kkBnttb-kZRxyS3AJLTLjOr7rxzGP2jw7OwGfOclzNxRIRZF00Ha88ApD0iNFKBczP9PBv4A8"),
@@ -46,5 +46,10 @@ func main() {
 			//UnscopedToken: openstack.Bool(true),
 		*/
 	}
-	client.Identity.CreateToken(opts)
+	token, _, _ := client.Identity.CreateToken(copts)
+
+	vopts := &openstack.ValidateTokenOpts{
+		SubjectToken: token,
+	}
+	client.Identity.ValidateToken(token, vopts)
 }
