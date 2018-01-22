@@ -21,7 +21,7 @@ import (
 type Level int8
 
 const (
-	// DBG is the Level for degub messages.
+	// DBG is the Level for debug messages.
 	DBG Level = iota
 	// INF is the Level for informational messages.
 	INF
