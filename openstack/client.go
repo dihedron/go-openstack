@@ -5,22 +5,39 @@
 package openstack
 
 import (
+	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/dghubble/sling"
+	"github.com/dihedron/go-openstack/log"
 )
 
-// DefaultUserAgent is the default User-Agent string set by the SDK.
-const DefaultUserAgent string = "go-openstack 0.0.1"
+const (
+	// SDKVersion is the version of the current library.
+	SDKVersion string = "0.0.1"
+	// DefaultUserAgent is the default User-Agent string set by the SDK.
+	DefaultUserAgent string = "go-openstack/" + SDKVersion
+)
 
 // Client is the go-openstack SDK client.
 type Client struct {
+
 	// HTTPClient is the HTTP Client used for connectiong to the API endpoints.
 	HTTPClient http.Client
+
+	// StartURL is the address of the Keystone server used to receive the first
+	// authentication Token and then proceed to browsing the Catalog.
+	StartURL string
+
 	// UserAgent is the User-Agent header value sent to the server.
 	UserAgent string
+
 	// Identity is the Identity API wrapper.
-	Identity *IdentityAPI
+	Identity *IdentityService
+	// other services here
 }
 
 // NewDefaultClient returns a new instance of a go-openstack SDK client,
@@ -32,11 +49,18 @@ func NewDefaultClient(url string) (*Client, error) {
 
 // NewClient returns a new instance of a go-openstack SDK client;
 // the first parameter is compulsory and represents the URL of the
-// Keystone instance; the others are optional and, if null, are
-// automaticelly filled with sensible defaults.
-func NewClient(url string, client *http.Client, agent *string) (*Client, error) {
-	if client == nil {
-		client = &http.Client{
+// Keystone instance from which both the authorization Token and the
+// catalog of active services can be retrieved; the others are optional
+// and, if null, are automaticelly filled with sensible defaults.
+func NewClient(startURL string, httpClient *http.Client, userAgent *string) (*Client, error) {
+
+	if len(strings.TrimSpace(startURL)) == 0 {
+		log.Errorln("NewClient: invalid KeyStone URL")
+		return nil, fmt.Errorf("invalid keystone URL")
+	}
+
+	if httpClient == nil {
+		httpClient = &http.Client{
 			Timeout: time.Second * 10,
 			Transport: &http.Transport{
 				Dial: (&net.Dialer{
@@ -47,45 +71,21 @@ func NewClient(url string, client *http.Client, agent *string) (*Client, error) 
 		}
 	}
 
-	if agent == nil {
-		agent = String(DefaultUserAgent)
+	if userAgent == nil {
+		userAgent = String(DefaultUserAgent)
 	}
 
-	return &Client{
-		HTTPClient: *client,
-		UserAgent:  *agent,
-		Identity:   newIdentityAPI(url, client, *agent),
-	}, nil
-}
-
-/*
-type Result struct {
-	Status  int
-	Payload interface{}
-}
-
-
-type ErrorHandler func(res *http.Response)
-
-func (c *Client) Get(url string, headers *map[string][]string, query interface{}, body interface{}, eh ErrorHandler) (interface{}, error) {
-	return "", nil
-}
-
-func (c *Client) Post(url string, headers *map[string][]string, query interface{}, body interface{}, eh ErrorHandler) (interface{}, error) {
-	c.New().Post(url).QueryStruct(query)
-
-	.BodyJSON(body).Request(); err == nil {
-		res, err := i.client.Do(req)
-		if err != nil {
-			log.Errorf("Identity.CreateToken: error sending request: %v", err)
-			return err
-		}
-		defer res.Body.Close()
-
-		body := &createTokenResponseBody{}
-		json.NewDecoder(res.Body).Decode(body)
-		b, _ := json.MarshalIndent(body, "", "  ")
-		fmt.Printf("RESPONSE HEADER:\n%s\nRESPONSE BODY:\n%s\n", res.Header.Get("X-Subject-Token"), b)
+	client := &Client{
+		HTTPClient: *httpClient,
+		//		StartURL:   startURL,
+		//		UserAgent:  *userAgent,
+		// may want to add token????
 	}
+
+	client.Identity = &IdentityService{
+		Client:         client,
+		RequestFactory: sling.New().Base(startURL).Set("User-Agent", *userAgent).Client(httpClient),
+	}
+
+	return client, nil
 }
-*/

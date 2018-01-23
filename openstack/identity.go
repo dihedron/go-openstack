@@ -13,105 +13,18 @@ import (
 	"github.com/dihedron/go-openstack/log"
 )
 
-// Authentication contains the identity entity used to authenticate users
-// and issue tokens against a Keystone instance; it can be scoped (when
-// either Project or Domain is specified), implicitly unscoped ()
-type Authentication struct {
-	Identity *Identity   `json:"identity,omitempty"`
-	Scope    interface{} `json:"scope,omitempty"`
-}
-
-type Domain struct {
-	ID   *string `json:"id,omitempty"`
-	Name *string `json:"name,omitempty"`
-}
-
-type Endpoint struct {
-	ID        *string `json:"id,omitempty"`
-	Interface *string `json:"interface,omitempty"`
-	Region    *string `json:"region,omitempty"`
-	RegionID  *string `json:"region_id,omitempty"`
-	URL       *string `json:"url,omitempty"`
-}
-
-type Identity struct {
-	Methods  *[]string `json:"methods,omitempty"`
-	Password *Password `json:"password,omitempty"`
-	Token    *Token    `json:"token,omitempty"`
-}
-
-type Password struct {
-	User *User `json:"user,omitempty"`
-}
-
-// Project represents a container that groups or isolates resources or identity
-// objects; depending on the service operator, a project might map to a customer,
-// account, organization, or tenant.
-type Project struct {
-	ID     *string `json:"id,omitempty"`
-	Name   *string `json:"name,omitempty"`
-	Domain *Domain `json:"domain,omitempty"`
-}
-
-type Role struct {
-	ID   *string `json:"id,omitempty"`
-	Name *string `json:"name,omitempty"`
-}
-
-type Scope struct {
-	Project *Project `json:"project,omitempty"`
-	Domain  *Domain  `json:"domain,omitempty"` // either one or the other: if both, BadRequest!
-}
-
-// Service represents an OpenStack service, such as Compute (nova), Object Storage
-// (swift), or Image service (glance), that provides one or more endpoints through
-// which users can access resources and perform operations.
-type Service struct {
-	ID        *string     `json:"id,omitempty"`
-	Name      *string     `json:"name,omitempty"`
-	Type      *string     `json:"type,omitempy"`
-	Endpoints *[]Endpoint `json:"endpoints,omitempty"`
-}
-
-// Token represents An alpha-numeric text string that enables access to OpenStack
-// APIs and resources and all associated metadata. A token may be revoked at any
-// time and is valid for a finite duration. While OpenStack Identity supports
-// token-based authentication in this release, it intends to support additional
-// protocols in the future. OpenStack Identity is an integration service that does
-// not aspire to be a full-fledged identity store and management solution.
-type Token struct {
-	ID           *string    `json:"id,omitempty"`
-	IssuedAt     *string    `json:"issued_at,omitempty"`
-	ExpiresAt    *string    `json:"expires_at,omitempty"`
-	User         *User      `json:"user,omitempty"`
-	Roles        *[]Role    `json:"roles,omitempty"`
-	Methods      *[]string  `json:"methods,omitempty"`
-	AuditIDs     *[]string  `json:"audit_ids,omitempty"`
-	Project      *Project   `json:"project,omitempty"`
-	IsDomain     *bool      `json:"is_domain,omitempty"`
-	IsAdminToken *bool      `json:"is_admin_token,omitempty"`
-	Catalog      *[]Service `json:"catalog,omitempty"`
-}
-
-// User is a digital representation of a person, system, or service that uses
-// OpenStack cloud services. The Identity service validates that incoming requests
-// are made by the user who claims to be making the call. Users have a login and
-// can access resources by using assigned tokens. Users can be directly assigned
-// to a particular project and behave as if they are contained in that project.
-type User struct {
-	ID                *string `json:"id,omitempty"`
-	Name              *string `json:"name,omitempty"`
-	Domain            *Domain `json:"domain,omitempty"`
-	Password          *string `json:"password,omitempty"`
-	PasswordExpiresAt *string `json:"password_expires_at,omitempty"`
-}
-
-// IdentityAPI represents the identity API providing all services regarding
+// IdentityService represents the identity API providing all services regarding
 // authentication, authorization, role and resource management.
 // See https://developer.openstack.org/api-ref/identity/v3/
-type IdentityAPI struct {
-	factory *sling.Sling
-	client  *http.Client
+type IdentityService struct {
+
+	// Client is the base SDK client, that takes care of sending requests
+	// and retrieving responses from the server; moreover it contains some
+	// context information such as User-Agent and access to other services.
+	Client *Client
+
+	// Factory is the base generator for Identity-related requests.
+	RequestFactory *sling.Sling
 }
 
 /*
@@ -151,7 +64,7 @@ type CreateTokenOpts struct {
 
 // CreateToken uses the provided parameters to authenticate the client to the
 // Keystone server and receive a token.
-func (api IdentityAPI) CreateToken(opts *CreateTokenOpts) (string, *Token, error) {
+func (identity IdentityService) CreateToken(opts *CreateTokenOpts) (string, *Token, error) {
 
 	query, _ := initCreateTokenRequestQuery(opts)
 
@@ -162,8 +75,8 @@ func (api IdentityAPI) CreateToken(opts *CreateTokenOpts) (string, *Token, error
 	log.Debugf("Identity.CreateToken: request body is\n%s\n", log.ToJSON(body))
 
 	var err error
-	if req, err := api.factory.New().Post("/identity/v3/auth/tokens").QueryStruct(query).BodyJSON(body).Request(); err == nil {
-		res, err := api.client.Do(req)
+	if req, err := identity.RequestFactory.New().Post("/identity/v3/auth/tokens").QueryStruct(query).BodyJSON(body).Request(); err == nil {
+		res, err := identity.Client.HTTPClient.Do(req)
 		if err != nil {
 			log.Errorf("Identity.CreateToken: error sending request: %v", err)
 			return "", nil, err
@@ -312,84 +225,84 @@ func initCreateTokenRequestBody(opts *CreateTokenOpts) (interface{}, error) {
  * VALIDATE AND GET TOKEN INFO
  */
 
-// ValidateTokenOpts contains the set of parameters and options used to
+// ReadTokenOpts contains the set of parameters and options used to
 // perform the valudation of a token on the Identity server.
-type ValidateTokenOpts struct {
+type ReadTokenOpts struct {
 	NoCatalog    bool
 	AllowExpired bool
 	SubjectToken string
 }
 
-// ValidateToken uses the provided parameters to validate the given token and retrieve
+// ReadToken uses the provided parameters to read the given token and retrieve
 // information about it from the Identity server; this API requires a valid admin
 // token.
-func (api IdentityAPI) ValidateToken(token string, opts *ValidateTokenOpts) (*Token, error) {
-	query, _ := initValidateTokenRequestQuery(opts)
+func (identity IdentityService) ReadToken(token string, opts *ReadTokenOpts) (*Token, error) {
+	query, _ := initReadTokenRequestQuery(opts)
 
-	headers, _ := initValidateTokenRequestHeaders(token, opts)
+	headers, _ := initReadTokenRequestHeaders(token, opts)
 
 	// no entities in body!
 
-	log.Debugf("Identity.ValidateToken: checking subject token:\n%s\n", opts.SubjectToken)
+	log.Debugf("Identity.ReadToken: reading subject token:\n%s\n", opts.SubjectToken)
 
 	var err error
-	sling := api.factory.New().Get("/identity/v3/auth/tokens").QueryStruct(query)
+	sling := identity.RequestFactory.New().Get("/identity/v3/auth/tokens").QueryStruct(query)
 	for key, values := range headers {
 		for _, value := range values {
 			sling.Add(key, value)
 		}
 	}
 	if req, err := sling.Request(); err == nil {
-		res, err := api.client.Do(req)
+		res, err := identity.Client.HTTPClient.Do(req)
 		if err != nil {
-			log.Errorf("Identity.ValidateToken: error sending request: %v", err)
+			log.Errorf("Identity.ReadToken: error sending request: %v", err)
 			return nil, err
 		}
 		defer res.Body.Close()
 
 		if res.StatusCode == 200 {
-			body := &validateTokenResponseBody{}
+			body := &readTokenResponseBody{}
 			json.NewDecoder(res.Body).Decode(body)
 
-			log.Debugf("Identity.ValidateToken: token info:\n%s\n", log.ToJSON(body))
+			log.Debugf("Identity.ReadToken: token info:\n%s\n", log.ToJSON(body))
 			return body.Token, nil
 		}
 
 		err = FromResponse(res)
-		log.Debugf("Identity.ValidateToken: API call unsuccessful: %v", err)
+		log.Debugf("Identity.ReadToken: API call unsuccessful: %v", err)
 		return nil, err
 	}
 
-	log.Errorf("Identity.ValidateToken: error creating request: %v\n", err)
+	log.Errorf("Identity.ReadToken: error creating request: %v\n", err)
 	return nil, err
 }
 
-type validateTokenRequestQuery struct {
+type readTokenRequestQuery struct {
 	NoCatalog    bool `url:"nocatalog,omitempty"`
 	AllowExpired bool `url:"allow_expired,omitempty"`
 }
 
-type validateQueryRequestHeaders map[string][]string
+type readTokenRequestHeaders map[string][]string
 
-type validateTokenRequestBody struct{}
+type readTokenRequestBody struct{}
 
-type validateTokenResponseBody struct {
+type readTokenResponseBody struct {
 	Token *Token `json:"token,omitempty"`
 }
 
-// initValidateTokenRequestQuery creates the struct used to pass the request
+// initReadTokenRequestQuery creates the struct used to pass the request
 // options that go on the query string.
-func initValidateTokenRequestQuery(opts *ValidateTokenOpts) (interface{}, error) {
-	return &validateTokenRequestQuery{
+func initReadTokenRequestQuery(opts *ReadTokenOpts) (interface{}, error) {
+	return &readTokenRequestQuery{
 		NoCatalog:    opts.NoCatalog,
 		AllowExpired: opts.AllowExpired,
 	}, nil
 }
 
-// initValidateTokenRequestHeaders creates a map of header values to be
+// initReadTokenRequestHeaders creates a map of header values to be
 // passed to the server along with the request.
-func initValidateTokenRequestHeaders(token string, opts *ValidateTokenOpts) (map[string][]string, error) {
-	return map[string][]string{
+func initReadTokenRequestHeaders(token string, opts *ReadTokenOpts) (readTokenRequestHeaders, error) {
+	return readTokenRequestHeaders{
 		"X-Auth-Token": []string{
 			token,
 		},
@@ -399,29 +312,190 @@ func initValidateTokenRequestHeaders(token string, opts *ValidateTokenOpts) (map
 	}, nil
 }
 
-// initValidateTokenRequestBody creates the structure representing the request
+// initReadTokenRequestBody creates the structure representing the request
 // entity; the struct will be automatically serialised to JSON by the client.
-func initValidateTokenRequestBody(opts *ValidateTokenOpts) (interface{}, error) {
+func initReadTokenRequestBody(opts *ReadTokenOpts) (interface{}, error) {
 	return nil, nil
 }
 
 /*
- * PRIVATE METHODS
+ * CHECK TOKEN
  */
 
-// newIdentityAPI ceates a new instance of the Indentity API wrapper; the
-// URL parameter is the URL of the Keystone service providing the service;
-// the http.Client is the HTTP client (provided by the user or in its default
-// implementation) used to perform the API requests, and the agent is the
-// User-Agent header sent along with the requests.
-func newIdentityAPI(url string, client *http.Client, agent string) *IdentityAPI {
-	if strings.TrimSpace(url) == "" {
-		panic("invalid url")
+// CheckTokenOpts contains the set of parameters and options used to
+// perform the valudation of a token on the Identity server.
+type CheckTokenOpts struct {
+	AllowExpired bool
+	SubjectToken string
+}
+
+// CheckToken uses the provided parameters to check the given token for validity
+// on the Identity server; this API requires a valid admin token.
+func (identity IdentityService) CheckToken(token string, opts *CheckTokenOpts) (bool, error) {
+	query, _ := initCheckTokenRequestQuery(opts)
+
+	headers, _ := initCheckTokenRequestHeaders(token, opts)
+
+	// no entities in body!
+
+	log.Debugf("Identity.CheckToken: checking subject token:\n%s\n", opts.SubjectToken)
+
+	var err error
+	sling := identity.RequestFactory.New().Head("/identity/v3/auth/tokens").QueryStruct(query)
+	for key, values := range headers {
+		for _, value := range values {
+			sling.Add(key, value)
+		}
 	}
-	id := &IdentityAPI{
-		factory: sling.New().Base(url).Set("User-Agent", agent).Client(client),
-		client:  client,
+	if req, err := sling.Request(); err == nil {
+		res, err := identity.Client.HTTPClient.Do(req)
+		if err != nil {
+			log.Errorf("Identity.CheckToken: error sending request: %v", err)
+			return false, err
+		}
+		defer res.Body.Close()
+
+		log.Debugf("Identity.CheckToken: X-Subject-Token header: %s\n", res.Header.Get("X-Subject-Token"))
+
+		if res.StatusCode == http.StatusOK {
+			log.Debugln("Identity.CheckToken: token is still valid (200)")
+			return true, nil
+		} else if res.StatusCode == 204 {
+			log.Debugln("Identity.CheckToken: token is not valid anymore (204)")
+			return false, nil
+		}
+
+		log.Debugf("Identity.CheckToken: API call unsuccessful: %v", err)
+		err = FromResponse(res)
+		return false, err
 	}
 
-	return id
+	log.Errorf("Identity.CheckToken: error creating request: %v\n", err)
+	return false, err
+}
+
+type checkTokenRequestQuery struct {
+	AllowExpired bool `url:"allow_expired,omitempty"`
+}
+
+type checkTokenRequestHeaders map[string][]string
+
+type checkTokenRequestBody struct{}
+
+type checkTokenResponseBody struct{}
+
+// initCheckTokenRequestQuery creates the struct used to pass the request
+// options that go on the query string.
+func initCheckTokenRequestQuery(opts *CheckTokenOpts) (interface{}, error) {
+	return &readTokenRequestQuery{
+		AllowExpired: opts.AllowExpired,
+	}, nil
+}
+
+// initCheckTokenRequestHeaders creates a map of header values to be
+// passed to the server along with the request.
+func initCheckTokenRequestHeaders(token string, opts *CheckTokenOpts) (checkTokenRequestHeaders, error) {
+	return checkTokenRequestHeaders{
+		"X-Auth-Token": []string{
+			token,
+		},
+		"X-Subject-Token": []string{
+			opts.SubjectToken,
+		},
+	}, nil
+}
+
+// initCheckTokenRequestBody creates the structure representing the request
+// entity; the struct will be automatically serialised to JSON by the client.
+func initCheckTokenRequestBody(opts *CheckTokenOpts) (interface{}, error) {
+	return nil, nil
+}
+
+/*
+ * DELETE TOKEN
+ */
+
+// DeleteTokenOpts contains the set of parameters and options used to revoke
+// a token on the Identity server.
+type DeleteTokenOpts struct {
+	SubjectToken string
+}
+
+// DeleteToken uses the provided parameters to revoke the given token for validity
+// on the Identity server; this API requires a valid admin token.
+func (identity IdentityService) DeleteToken(token string, opts *DeleteTokenOpts) (bool, error) {
+
+	// no parameters in query
+
+	headers, _ := initDeleteTokenRequestHeaders(token, opts)
+
+	// no entities in body!
+
+	log.Debugf("Identity.DeleteToken: checking subject token:\n%s\n", opts.SubjectToken)
+
+	var err error
+	sling := identity.RequestFactory.New().Delete("/identity/v3/auth/tokens")
+	for key, values := range headers {
+		for _, value := range values {
+			sling.Add(key, value)
+		}
+	}
+	if req, err := sling.Request(); err == nil {
+		res, err := identity.Client.HTTPClient.Do(req)
+		if err != nil {
+			log.Errorf("Identity.DeleteToken: error sending request: %v", err)
+			return false, err
+		}
+		defer res.Body.Close()
+
+		log.Debugf("Identity.DeleteToken: X-Subject-Token header: %s\n", res.Header.Get("X-Subject-Token"))
+
+		if res.StatusCode == http.StatusOK {
+			log.Debugln("Identity.DeleteToken: token is still valid (200)")
+			return true, nil
+		} else if res.StatusCode == 204 {
+			log.Debugln("Identity.DeleteToken: token is not valid anymore (204)")
+			return false, nil
+		}
+
+		log.Debugf("Identity.DeleteToken: API call unsuccessful: %v", err)
+		err = FromResponse(res)
+		return false, err
+	}
+
+	log.Errorf("Identity.DeleteToken: error creating request: %v\n", err)
+	return false, err
+}
+
+type deleteTokenRequestQuery struct{}
+
+type deleteTokenRequestHeaders map[string][]string
+
+type deleteTokenRequestBody struct{}
+
+type deleteTokenResponseBody struct{}
+
+// initDeleteTokenRequestQuery creates the struct used to pass the request
+// options that go on the query string.
+func initDeleteTokenRequestQuery(opts *CheckTokenOpts) (interface{}, error) {
+	return nil, nil
+}
+
+// initDeleteTokenRequestHeaders creates a map of header values to be
+// passed to the server along with the request.
+func initDeleteTokenRequestHeaders(token string, opts *DeleteTokenOpts) (deleteTokenRequestHeaders, error) {
+	return deleteTokenRequestHeaders{
+		"X-Auth-Token": []string{
+			token,
+		},
+		"X-Subject-Token": []string{
+			opts.SubjectToken,
+		},
+	}, nil
+}
+
+// initDeleteTokenRequestBody creates the structure representing the request
+// entity; the struct will be automatically serialised to JSON by the client.
+func initDeleteTokenRequestBody(opts *DeleteTokenOpts) (interface{}, error) {
+	return nil, nil
 }

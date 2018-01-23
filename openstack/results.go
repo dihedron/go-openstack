@@ -26,10 +26,19 @@ func (r Result) Error() string {
 // API result.
 func FromResponse(res *http.Response) Result {
 	switch res.StatusCode {
-	case 200:
+	case http.StatusOK: // 200
 		return Success
-	case 201:
+	case http.StatusCreated: // 201
 		return Created
+	// case http.StatusAccepted: // 202
+	// case http.StatusNonAuthoritativeInfo: // 203
+	case http.StatusNoContent: // 204
+		return NoContent
+	// case http.ResetContent: // 205
+	// case http.StatusPartialContent: // 206
+	// case http.StatusMulticase: // 207
+	// case http.StatusAlreadyReported : // 208
+	// case http.StatusIMUsed: // 226
 	case 400:
 		return BadRequest
 	case 401:
@@ -68,6 +77,14 @@ var (
 		Code:        201,
 		Status:      "Created",
 		Description: "Resource was created and is ready to use.",
+	}
+
+	// NoContent means that there is no data associated with the requested resource;
+	// this is typical with HEAD requests.
+	NoContent = Result{
+		Code:        204,
+		Status:      "No Content",
+		Description: "There is no data associated with the requested resource.",
 	}
 
 	// BadRequest means that some content in the HTTP API request was invalid.

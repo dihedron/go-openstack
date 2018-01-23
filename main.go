@@ -48,8 +48,27 @@ func main() {
 	}
 	token, _, _ := client.Identity.CreateToken(copts)
 
-	vopts := &openstack.ValidateTokenOpts{
+	log.Debugf("-----------------------------------------------------\n")
+
+	ropts := &openstack.ReadTokenOpts{
 		SubjectToken: token,
 	}
-	client.Identity.ValidateToken(token, vopts)
+	client.Identity.ReadToken(token, ropts)
+
+	log.Debugf("-----------------------------------------------------\n")
+
+	vopts := &openstack.CheckTokenOpts{
+		SubjectToken: token,
+	}
+	client.Identity.CheckToken(token, vopts)
+
+	log.Debugf("-----------------------------------------------------\n")
+
+	token2, _, _ := client.Identity.CreateToken(copts)
+	dopts := &openstack.DeleteTokenOpts{
+		SubjectToken: token,
+	}
+	client.Identity.DeleteToken(token2, dopts)
+	client.Identity.CheckToken(token2, vopts)
+
 }
