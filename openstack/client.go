@@ -31,11 +31,15 @@ const (
 // Client is the go-openstack SDK client.
 type Client struct {
 
-	// HTTPClient is the HTTP Client used for connectiong to the API endpoints.
-	HTTPClient http.Client
+	// httpClient is the HTTP Client used for connectiong to the API endpoints.
+	httpClient http.Client
 
-	// UserAgent is the User-Agent header value sent to the server.
-	UserAgent string
+	// userAgent is the User-Agent header value sent to the server.
+	userAgent string
+
+	// authToken is the token released by the Identity service that gives access
+	// to all protected APIs.
+	authToken *string
 
 	// Identity is the Identity service API wrapper.
 	Identity *IdentityAPI
@@ -53,8 +57,6 @@ type API struct {
 
 	// requestor is the generator for service-specific requests.
 	requestor *sling.Sling
-
-	// TODO: may want to add token????
 }
 
 // NewDefaultClient returns a new instance of a go-openstack SDK client,
@@ -97,8 +99,8 @@ func NewClient(catalogURL string, httpClient *http.Client, userAgent *string) (*
 	}
 
 	client := &Client{
-		HTTPClient: *httpClient,
-		UserAgent:  *userAgent,
+		httpClient: *httpClient,
+		userAgent:  *userAgent,
 	}
 
 	client.Identity = &IdentityAPI{
@@ -150,6 +152,10 @@ func (api *API) Invoke(method string, url string, opts interface{}, keys []strin
 
 	sling := api.requestor.New().Method(method).Path(url)
 
+	if api.client.authToken != nil {
+		sling.Add("X-Auth-Token", *api.client.authToken)
+	}
+
 	log.Debugf("API.Invoke: Sling is now %v", sling)
 
 	if builder == nil {
@@ -162,7 +168,7 @@ func (api *API) Invoke(method string, url string, opts interface{}, keys []strin
 		return nil, nil, err
 	}
 
-	response, err := api.client.HTTPClient.Do(request)
+	response, err := api.client.httpClient.Do(request)
 	if err != nil {
 		log.Errorf("API.Invoke: error sending request: %v", err)
 		return nil, nil, err

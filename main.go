@@ -32,31 +32,40 @@ func main() {
 
 	client, _ := openstack.NewDefaultClient(endpoint)
 
-	copts := &openstack.CreateTokenOpts{
-		/*
-			Method: openstack.CreateTokenMethodToken,
-			TokenID:         openstack.String("gAAAAABaZgmbPZtoEyuTzJXmggwMAyjLZSiknQJPeR4m1FQaL0dpv1nvvVZvd-B3PORQnRqXrR3OevmRKvMqrXwiam02xElVJXOQHKkExqpTK4kkBnttb-kZRxyS3AJLTLjOr7rxzGP2jw7OwGfOclzNxRIRZF00Ha88ApD0iNFKBczP9PBv4A8"),
-			ScopeDomainName: openstack.String("Default"),
-		*/
-
-		Method: "password",
-		//NoCatalog:      true,
-		UserName:       openstack.String("admin"),
-		UserDomainName: openstack.String("Default"),
-		UserPassword:   openstack.String("password"),
-		//ScopeProjectID: openstack.String("0877bbc0712043639e29f026cd56b9c7"),
-		/*
-			//ScopeProjectName: openstack.String("admin"),
-			//ScopeDomainName:  openstack.String("Default"),
-			//ScopeProjectName: openstack.String("demo"),
-			//ScopeDomainID:    openstack.String("default"),
-			//UnscopedToken: openstack.Bool(true),
-		*/
+	opts := &openstack.LoginOpts{
+		UserName:         openstack.String("admin"),
+		UserDomainName:   openstack.String("Default"),
+		UserPassword:     openstack.String("password"),
+		ScopeProjectName: openstack.String("admin"),
+		ScopeDomainName:  openstack.String("Default"),
 	}
-	token, header, _, _ := client.Identity.CreateToken(copts)
-	log.Debugf("main: token: %s\ntoken info:\n%s\n", header, log.ToJSON(token))
+	client.Login(opts)
 
-	log.Debugf("-----------------------------------------------------\n")
+	// copts := &openstack.CreateTokenOpts{
+	// 	/*
+	// 		Method: openstack.CreateTokenMethodToken,
+	// 		TokenID:         openstack.String("gAAAAABaZgmbPZtoEyuTzJXmggwMAyjLZSiknQJPeR4m1FQaL0dpv1nvvVZvd-B3PORQnRqXrR3OevmRKvMqrXwiam02xElVJXOQHKkExqpTK4kkBnttb-kZRxyS3AJLTLjOr7rxzGP2jw7OwGfOclzNxRIRZF00Ha88ApD0iNFKBczP9PBv4A8"),
+	// 		ScopeDomainName: openstack.String("Default"),
+	// 	*/
+
+	// 	Method: "password",
+	// 	//NoCatalog:      true,
+	// 	UserName:       openstack.String("admin"),
+	// 	UserDomainName: openstack.String("Default"),
+	// 	UserPassword:   openstack.String("password"),
+	// 	//ScopeProjectID: openstack.String("0877bbc0712043639e29f026cd56b9c7"),
+	// 	/*
+	// 		//ScopeProjectName: openstack.String("admin"),
+	// 		//ScopeDomainName:  openstack.String("Default"),
+	// 		//ScopeProjectName: openstack.String("demo"),
+	// 		//ScopeDomainID:    openstack.String("default"),
+	// 		//UnscopedToken: openstack.Bool(true),
+	// 	*/
+	// }
+	// token, header, _, _ := client.Identity.CreateToken(copts)
+	// log.Debugf("main: token: %s\ntoken info:\n%s\n", header, log.ToJSON(token))
+
+	// log.Debugf("-----------------------------------------------------\n")
 
 	// ropts := &openstack.ReadTokenOpts{
 	// 	SubjectToken: token,

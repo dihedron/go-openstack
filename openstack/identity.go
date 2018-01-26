@@ -1,6 +1,7 @@
 package openstack
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -26,6 +27,62 @@ type CreateTokenOpts struct {
 	ScopeDomainName  *string
 	UnscopedToken    *bool
 }
+
+// LoginOpts is a subset of CreateTokenOpts; it assumes some defaults and is
+// used when invoking the Client's Login method.
+type LoginOpts struct {
+	UserName         *string
+	UserDomainName   *string
+	UserPassword     *string
+	ScopeProjectName *string
+	ScopeDomainName  *string
+	UnscopedLogin    *bool
+	// TokenID????
+}
+
+/*
+ * LOGIN
+ */
+
+// Login performs a login using the given options and sets the returned token
+// inside the Client, so it can be automatically set as a request header in the
+// following calls; moreover this method parses the catalog and initialises all
+// the other available service APIs using the retrieved endpoints.
+func (c Client) Login(opts *LoginOpts) error {
+	opts2 := &CreateTokenOpts{
+		NoCatalog:        false,
+		Method:           "password",
+		UserName:         opts.UserName,
+		UserDomainName:   opts.UserDomainName,
+		UserPassword:     opts.UserPassword,
+		ScopeProjectName: opts.ScopeProjectName,
+		ScopeDomainName:  opts.ScopeDomainName,
+		UnscopedToken:    opts.UnscopedLogin,
+	}
+
+	token, info, _, err := c.Identity.CreateToken(opts2)
+	if err != nil {
+		log.Errorf("Client.Login: login failed: %v", err)
+		return err
+	}
+
+	c.authToken = String(token)
+
+	if info.Catalog == nil {
+		log.Errorf("Client.Login: no catalog info available")
+		return fmt.Errorf("no catalog information available from identity service")
+	}
+
+	for _, service := range *info.Catalog {
+		log.Debugf("Client.Login: initialising service %s (type: %s, id: %s)", *service.Name, *service.Type, *service.ID)
+	}
+
+	return nil
+}
+
+/*
+ * CREATE TOKEN
+ */
 
 // CreateToken uses the provided parameters to authenticate the client to the
 // Keystone server and receive a token.
@@ -168,4 +225,23 @@ func CreateTokenRequestBuilder(sling *sling.Sling, opts interface{}) (request *h
 	log.Debugf("Identity.CreateTokenRequestBuilder: entity in request body is\n%s\n", log.ToJSON(entity))
 
 	return sling.BodyJSON(entity).Request()
+}
+
+/*
+ * VALIDATE AND GET TOKEN INFO
+ */
+
+// ReadTokenOpts contains the set of parameters and options used to
+// perform the valudation of a token on the Identity server.
+type ReadTokenOpts struct {
+	NoCatalog    bool   `url:"nocatalog,omitempty"`
+	AllowExpired bool   `url:"allow_expired,omitempty"`
+	SubjectToken string `header:"X-Subject-Token"`
+}
+
+// ReadToken uses the provided parameters to read the given token and retrieve
+// information about it from the Identity server; this API requires a valid admin
+// token.
+func (api IdentityAPI) ReadToken(opts *ReadTokenOpts) (*Token, *Result, error) {
+	return nil, nil, nil
 }

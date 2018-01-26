@@ -14,7 +14,7 @@ func TestCreateTokenFromEnv(t *testing.T) {
 		t.FailNow()
 	}
 
-	log.SetLevel(log.DBG)
+	log.SetLevel(log.ERR)
 	log.SetStream(os.Stdout)
 	log.SetTimeFormat("15:04:05.000")
 
@@ -26,7 +26,7 @@ func TestCreateTokenFromEnv(t *testing.T) {
 	client.Identity.CreateTokenFromEnv()
 }
 
-func TestCreateTokenUserNameUserDomainPasswordUnscoped(t *testing.T) {
+func TestCreateTokenParam(t *testing.T) {
 	endpoint := "http://192.168.56.101" // my shiny devstack :-)
 
 	client, err := NewDefaultClient(endpoint)
@@ -35,56 +35,121 @@ func TestCreateTokenUserNameUserDomainPasswordUnscoped(t *testing.T) {
 		t.FailNow()
 	}
 
-	opts := &CreateTokenOpts{
-		Method:         "password",
-		UserName:       String("admin"),
-		UserDomainName: String("Default"),
-		UserPassword:   String("password"),
-	}
-	token, _, _, _ := client.Identity.CreateToken(opts)
-
-	if len(token) == 0 {
-		t.Errorf("Identity.TestCreateTokenUnscopedPassword: no token returned")
-		t.FailNow()
-	}
-}
-
-func TestCreateTokenUserIDPasswordUnscoped(t *testing.T) {
-	endpoint := "http://192.168.56.101" // my shiny devstack :-)
-
-	client, err := NewDefaultClient(endpoint)
-	if err != nil {
-		t.Errorf("Identity.TestCreateTokenFromEnv: error initialising client: %v", err)
-		t.FailNow()
-	}
-
-	opts := &CreateTokenOpts{
-		/*
-			Method: CreateTokenMethodToken,
-			TokenID:         String("gAAAAABaZgmbPZtoEyuTzJXmggwMAyjLZSiknQJPeR4m1FQaL0dpv1nvvVZvd-B3PORQnRqXrR3OevmRKvMqrXwiam02xElVJXOQHKkExqpTK4kkBnttb-kZRxyS3AJLTLjOr7rxzGP2jw7OwGfOclzNxRIRZF00Ha88ApD0iNFKBczP9PBv4A8"),
+	tests := map[string]*CreateTokenOpts{
+		"UserNameUserDomainPasswordImplicitlyUnscopedCatalog": &CreateTokenOpts{
+			Method:         "password",
+			UserName:       String("admin"),
+			UserDomainName: String("Default"),
+			UserPassword:   String("password"),
+		},
+		"UserNameUserDomainPasswordExplicitlyUnscopedCatalog": &CreateTokenOpts{
+			Method:         "password",
+			UserName:       String("admin"),
+			UserDomainName: String("Default"),
+			UserPassword:   String("password"),
+			UnscopedToken:  Bool(true),
+		},
+		"UserNameUserDomainPasswordScopedDomainIDCatalog": &CreateTokenOpts{
+			Method:         "password",
+			UserName:       String("admin"),
+			UserDomainName: String("Default"),
+			UserPassword:   String("password"),
+			ScopeDomainID:  String("default"),
+		},
+		"UserNameUserDomainPasswordScopedDomainNameCatalog": &CreateTokenOpts{
+			Method:          "password",
+			UserName:        String("admin"),
+			UserDomainName:  String("Default"),
+			UserPassword:    String("password"),
 			ScopeDomainName: String("Default"),
-		*/
-
-		Method: "password",
-		//NoCatalog:      true,
-		UserName:       String("admin"),
-		UserDomainName: String("Default"),
-		UserPassword:   String("password"),
-		//ScopeProjectID: String("0877bbc0712043639e29f026cd56b9c7"),
-		/*
-			//ScopeProjectName: String("admin"),
-			//ScopeDomainName:  String("Default"),
-			//ScopeProjectName: String("demo"),
-			//ScopeDomainID:    String("default"),
-			//UnscopedToken: Bool(true),
-		*/
+		},
+		"UserNameUserDomainPasswordScopedProjectIDCatalog": &CreateTokenOpts{
+			Method:         "password",
+			UserName:       String("admin"),
+			UserDomainName: String("Default"),
+			UserPassword:   String("password"),
+			ScopeProjectID: String("b5ca4b54c504463291d138f0c24e1a20"),
+		},
+		"UserNameUserDomainPasswordScopedProjectNameDomainNameCatalog": &CreateTokenOpts{
+			Method:           "password",
+			UserName:         String("admin"),
+			UserDomainName:   String("Default"),
+			UserPassword:     String("password"),
+			ScopeProjectName: String("admin"),
+			ScopeDomainName:  String("Default"),
+		},
+		"UserNameUserDomainPasswordScopedProjectNameDomainIDCatalog": &CreateTokenOpts{
+			Method:           "password",
+			UserName:         String("admin"),
+			UserDomainName:   String("Default"),
+			UserPassword:     String("password"),
+			ScopeProjectName: String("admin"),
+			ScopeDomainID:    String("default"),
+		},
+		"UserNameUserDomainPasswordImplicitlyUnscopedNoCatalog": &CreateTokenOpts{
+			Method:         "password",
+			UserName:       String("admin"),
+			UserDomainName: String("Default"),
+			UserPassword:   String("password"),
+			NoCatalog:      true,
+		},
+		"UserNameUserDomainPasswordExplicitlyUnscopedNoCatalog": &CreateTokenOpts{
+			Method:         "password",
+			UserName:       String("admin"),
+			UserDomainName: String("Default"),
+			UserPassword:   String("password"),
+			UnscopedToken:  Bool(true),
+			NoCatalog:      true,
+		},
+		"UserNameUserDomainPasswordScopedDomainIDNoCatalog": &CreateTokenOpts{
+			Method:         "password",
+			UserName:       String("admin"),
+			UserDomainName: String("Default"),
+			UserPassword:   String("password"),
+			ScopeDomainID:  String("default"),
+			NoCatalog:      true,
+		},
+		"UserNameUserDomainPasswordScopedDomainNameNoCatalog": &CreateTokenOpts{
+			Method:          "password",
+			UserName:        String("admin"),
+			UserDomainName:  String("Default"),
+			UserPassword:    String("password"),
+			ScopeDomainName: String("Default"),
+			NoCatalog:       true,
+		},
+		"UserNameUserDomainPasswordScopedProjectIDNoCatalog": &CreateTokenOpts{
+			Method:         "password",
+			UserName:       String("admin"),
+			UserDomainName: String("Default"),
+			UserPassword:   String("password"),
+			ScopeProjectID: String("b5ca4b54c504463291d138f0c24e1a20"),
+			NoCatalog:      true,
+		},
+		"UserNameUserDomainPasswordScopedProjectNameDomainNameNoCatalog": &CreateTokenOpts{
+			Method:           "password",
+			UserName:         String("admin"),
+			UserDomainName:   String("Default"),
+			UserPassword:     String("password"),
+			ScopeProjectName: String("admin"),
+			ScopeDomainName:  String("Default"),
+			NoCatalog:        true,
+		},
+		"UserNameUserDomainPasswordScopedProjectNameDomainIDNoCatalog": &CreateTokenOpts{
+			Method:           "password",
+			UserName:         String("admin"),
+			UserDomainName:   String("Default"),
+			UserPassword:     String("password"),
+			ScopeProjectName: String("admin"),
+			ScopeDomainID:    String("default"),
+			NoCatalog:        true,
+		},
 	}
-	token, object, _, _ := client.Identity.CreateToken(opts)
+	for test, opts := range tests {
+		token, _, _, _ := client.Identity.CreateToken(opts)
 
-	log.Debugf("Identity.TestCreateTokenUserIDPasswordUnscoped: token is:\n%s\ntoken info:\n%s\n", token, log.ToJSON(object))
-
-	if len(token) == 0 {
-		t.Errorf("Identity.TestCreateTokenUserIDPasswordUnscoped: no token returned")
-		t.FailNow()
+		if len(token) == 0 {
+			t.Errorf("Identity.TestCreateToken%s: no token returned", test)
+			t.FailNow()
+		}
 	}
 }
