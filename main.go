@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/dihedron/go-openstack/log"
@@ -14,9 +15,15 @@ import (
 // https://developer.openstack.org/sdks/python/openstacksdk/users/profile.html#openstack.profile.Profile
 func main() {
 
-	endpoint := "http://192.168.56.101" // my shiny devstack :-)
-	if len(os.Args) >= 2 {
-		endpoint = os.Args[1]
+	fmt.Println("---------------------------------------------------------------------")
+
+	endpoint := os.Getenv("OS_AUTH_URL")
+	if endpoint == "" {
+		if len(os.Args) >= 2 {
+			endpoint = os.Args[1]
+		} else {
+			endpoint = "http://192.168.56.101" // my shiny devstack :-)
+		}
 	}
 
 	log.SetLevel(log.DBG)
@@ -32,7 +39,7 @@ func main() {
 			ScopeDomainName: openstack.String("Default"),
 		*/
 
-		Method: openstack.CreateTokenMethodPassword,
+		Method: "password",
 		//NoCatalog:      true,
 		UserName:       openstack.String("admin"),
 		UserDomainName: openstack.String("Default"),
@@ -46,29 +53,30 @@ func main() {
 			//UnscopedToken: openstack.Bool(true),
 		*/
 	}
-	token, _, _ := client.Identity.CreateToken(copts)
+	token, header, _, _ := client.Identity.CreateToken(copts)
+	log.Debugf("main: token: %s\ntoken info:\n%s\n", header, log.ToJSON(token))
 
 	log.Debugf("-----------------------------------------------------\n")
 
-	ropts := &openstack.ReadTokenOpts{
-		SubjectToken: token,
-	}
-	client.Identity.ReadToken(token, ropts)
+	// ropts := &openstack.ReadTokenOpts{
+	// 	SubjectToken: token,
+	// }
+	// client.Identity.ReadToken(token, ropts)
 
-	log.Debugf("-----------------------------------------------------\n")
+	// log.Debugf("-----------------------------------------------------\n")
 
-	vopts := &openstack.CheckTokenOpts{
-		SubjectToken: token,
-	}
-	client.Identity.CheckToken(token, vopts)
+	// vopts := &openstack.CheckTokenOpts{
+	// 	SubjectToken: token,
+	// }
+	// client.Identity.CheckToken(token, vopts)
 
-	log.Debugf("-----------------------------------------------------\n")
+	// log.Debugf("-----------------------------------------------------\n")
 
-	token2, _, _ := client.Identity.CreateToken(copts)
-	dopts := &openstack.DeleteTokenOpts{
-		SubjectToken: token,
-	}
-	client.Identity.DeleteToken(token2, dopts)
-	client.Identity.CheckToken(token2, vopts)
+	// token2, _, _ := client.Identity.CreateToken(copts)
+	// dopts := &openstack.DeleteTokenOpts{
+	// 	SubjectToken: token,
+	// }
+	// client.Identity.DeleteToken(token2, dopts)
+	// client.Identity.CheckToken(token2, vopts)
 
 }

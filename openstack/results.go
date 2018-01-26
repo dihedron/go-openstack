@@ -22,9 +22,9 @@ func (r Result) Error() string {
 	return fmt.Sprintf("%d (%s)", r.Code, r.Status)
 }
 
-// FromResponse maps the status code in an HTTP Response to the corresponding
+// NewResult maps the status code in an HTTP Response to the corresponding
 // API result.
-func FromResponse(res *http.Response) Result {
+func NewResult(res *http.Response) Result {
 	switch res.StatusCode {
 	case http.StatusOK: // 200
 		return Success
@@ -62,6 +62,30 @@ func FromResponse(res *http.Response) Result {
 	return Result{
 		Description: "Unknown error.",
 	}
+}
+
+func (r Result) IsInformational() bool {
+	return r.Code >= 100 && r.Code < 200
+}
+
+func (r Result) IsSuccess() bool {
+	return r.Code >= 200 && r.Code < 300
+}
+
+func (r Result) IsRedirection() bool {
+	return r.Code >= 300 && r.Code < 400
+}
+
+func (r Result) IsClientError() bool {
+	return r.Code >= 400 && r.Code < 500
+}
+
+func (r Result) IsServerError() bool {
+	return r.Code >= 500 && r.Code < 600
+}
+
+func (r Result) IsUnofficial() bool {
+	return r.Code >= 600
 }
 
 var (

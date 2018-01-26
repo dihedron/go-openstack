@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	goquery "github.com/google/go-querystring/query"
 )
@@ -135,6 +136,31 @@ func (s *Sling) Patch(pathURL string) *Sling {
 func (s *Sling) Delete(pathURL string) *Sling {
 	s.method = "DELETE"
 	return s.Path(pathURL)
+}
+
+// Options sets the Sling method to OPTIONS and sets the given pathURL.
+func (s *Sling) Options(pathURL string) *Sling {
+	s.method = "OPTIONS"
+	return s.Path(pathURL)
+}
+
+// Trace sets the Sling method to TRACE and sets the given pathURL.
+func (s *Sling) Trace(pathURL string) *Sling {
+	s.method = "TRACE"
+	return s.Path(pathURL)
+}
+
+// Connect sets the Sling method to CONNECT and sets the given pathURL.
+func (s *Sling) Connect(pathURL string) *Sling {
+	s.method = "CONNECT"
+	return s.Path(pathURL)
+}
+
+// Method sets the Sling method to the provided value; it does not affect
+// the Sling path.
+func (s *Sling) Method(method string) *Sling {
+	s.method = strings.ToUpper(strings.TrimSpace(method))
+	return s
 }
 
 // Header
@@ -387,4 +413,23 @@ func decodeResponseJSON(resp *http.Response, successV, failureV interface{}) err
 // Caller must provide a non-nil v and close the resp.Body.
 func decodeResponseBodyJSON(resp *http.Response, v interface{}) error {
 	return json.NewDecoder(resp.Body).Decode(v)
+}
+
+// ToJSON provides the internal state of a Sling as a pretty-printed JSON.
+func (s *Sling) ToJSON() string {
+	copy := &struct {
+		Method       string        `json:"method,omitempty"`
+		RawURL       string        `json:"url,omitempty"`
+		Header       http.Header   `json:"headers,omitempty"`
+		QueryStructs []interface{} `json:"query,omitempty"`
+	}{
+		Method:       s.method,
+		RawURL:       s.rawURL,
+		Header:       s.header,
+		QueryStructs: s.queryStructs,
+	}
+	if bytes, err := json.MarshalIndent(copy, "", "  "); err == nil {
+		return string(bytes)
+	}
+	return ""
 }
