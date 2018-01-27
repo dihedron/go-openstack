@@ -1,7 +1,6 @@
 package openstack
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -28,65 +27,13 @@ type CreateTokenOpts struct {
 	UnscopedToken    *bool
 }
 
-// LoginOpts is a subset of CreateTokenOpts; it assumes some defaults and is
-// used when invoking the Client's Login method.
-type LoginOpts struct {
-	UserName         *string
-	UserDomainName   *string
-	UserPassword     *string
-	ScopeProjectName *string
-	ScopeDomainName  *string
-	UnscopedLogin    *bool
-	// TokenID????
-}
-
-/*
- * LOGIN
- */
-
-// Login performs a login using the given options and sets the returned token
-// inside the Client, so it can be automatically set as a request header in the
-// following calls; moreover this method parses the catalog and initialises all
-// the other available service APIs using the retrieved endpoints.
-func (c Client) Login(opts *LoginOpts) error {
-	opts2 := &CreateTokenOpts{
-		NoCatalog:        false,
-		Method:           "password",
-		UserName:         opts.UserName,
-		UserDomainName:   opts.UserDomainName,
-		UserPassword:     opts.UserPassword,
-		ScopeProjectName: opts.ScopeProjectName,
-		ScopeDomainName:  opts.ScopeDomainName,
-		UnscopedToken:    opts.UnscopedLogin,
-	}
-
-	token, info, _, err := c.Identity.CreateToken(opts2)
-	if err != nil {
-		log.Errorf("Client.Login: login failed: %v", err)
-		return err
-	}
-
-	c.authToken = String(token)
-
-	if info.Catalog == nil {
-		log.Errorf("Client.Login: no catalog info available")
-		return fmt.Errorf("no catalog information available from identity service")
-	}
-
-	for _, service := range *info.Catalog {
-		log.Debugf("Client.Login: initialising service %s (type: %s, id: %s)", *service.Name, *service.Type, *service.ID)
-	}
-
-	return nil
-}
-
 /*
  * CREATE TOKEN
  */
 
 // CreateToken uses the provided parameters to authenticate the client to the
 // Keystone server and receive a token.
-func (api IdentityAPI) CreateToken(opts *CreateTokenOpts) (string, *Token, *Result, error) {
+func (api *IdentityAPI) CreateToken(opts *CreateTokenOpts) (string, *Token, *Result, error) {
 
 	type wrapper struct {
 		Token *Token `json:"token,omitempy"`
@@ -105,7 +52,7 @@ func (api IdentityAPI) CreateToken(opts *CreateTokenOpts) (string, *Token, *Resu
 
 // CreateTokenFromEnv uses the information in the environment to authenticate the
 // client to the Keystore server and receive a token.
-func (api IdentityAPI) CreateTokenFromEnv() (string, *Token, *Result, error) {
+func (api *IdentityAPI) CreateTokenFromEnv() (string, *Token, *Result, error) {
 	opts := &CreateTokenOpts{
 		Method:         "password",
 		UserName:       String(os.Getenv("OS_USERNAME")),

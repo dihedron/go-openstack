@@ -39,7 +39,9 @@ func main() {
 		ScopeProjectName: openstack.String("admin"),
 		ScopeDomainName:  openstack.String("Default"),
 	}
-	client.Login(opts)
+	client.Authenticator.Login(opts)
+
+	client.Authenticator.Logout()
 
 	// copts := &openstack.CreateTokenOpts{
 	// 	/*
