@@ -30,7 +30,7 @@ func main() {
 	log.SetStream(os.Stdout)
 	log.SetTimeFormat("15:04:05.000")
 
-	client, _ := openstack.NewDefaultClient(endpoint)
+	client, _ := openstack.NewDefaultClient().ConnectTo(endpoint)
 
 	opts := &openstack.LoginOpts{
 		UserName:         openstack.String("admin"),

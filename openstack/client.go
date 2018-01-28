@@ -48,25 +48,17 @@ type Client struct {
 // NewDefaultClient returns a new instance of a go-openstack SDK client,
 // with sensible defaults for the http.Ckient and the user agent string;
 // the Keystone URL must be provided.
-func NewDefaultClient(catalogURL string) (*Client, error) {
-	return NewClient(catalogURL, nil, nil)
+func NewDefaultClient() *Client {
+	return NewClient(nil, nil)
 }
 
-// NewClient returns a new instance of a go-openstack SDK client;
-// the first parameter is compulsory and represents the URL of the
-// Keystone instance from which both the authorization Token and the
-// catalog of active services can be retrieved; the others are optional
-// and, if null, are automaticelly filled with sensible defaults.
-func NewClient(catalogURL string, httpClient *http.Client, userAgent *string) (*Client, error) {
-
-	if len(strings.TrimSpace(catalogURL)) == 0 {
-		catalogURL = os.Getenv("OS_AUTH_URL")
-	}
-
-	if catalogURL == "" {
-		log.Errorln("NewClient: no catalog URL, please provide URL of Keystone server either explicitly or as OS_AUTH_URL")
-		return nil, fmt.Errorf("no valid catalog URL")
-	}
+// NewClient returns a new instance of a go-openstack SDK client; the
+// httpClient parameter allows to use one's own implementation of a
+// http.Client, e.g. to support custom mechanisms for TLS etc.; the second
+// parameter allows to specify one's own User-Agent string. If any of the
+// parameters is omitted (that is, nil), sensible defaults are automatically
+// provided by the SDK.
+func NewClient(httpClient *http.Client, userAgent *string) *Client {
 
 	if httpClient == nil {
 		httpClient = &http.Client{
@@ -90,8 +82,9 @@ func NewClient(catalogURL string, httpClient *http.Client, userAgent *string) (*
 		Authenticator: &Authenticator{
 			Identity: &IdentityV3API{
 				API{
-					client:    nil, // initialise later (*) with pointer to this same struct
-					requestor: sling.New().Base(catalogURL).Set("User-Agent", *userAgent).Client(httpClient),
+					client: nil, // initialise later (*) with pointer to this same struct
+					//requestor: sling.New().Base(catalogURL).Set("User-Agent", *userAgent).Client(httpClient),
+					requestor: sling.New().Set("User-Agent", *userAgent).Client(httpClient),
 				},
 			},
 			TokenValue: nil,
@@ -104,7 +97,34 @@ func NewClient(catalogURL string, httpClient *http.Client, userAgent *string) (*
 	// NOTE: other APIs will be dynamically added once we have
 	// access to the catalog via an authenticated Keystore request
 
-	return client, nil
+	return client
+}
+
+//
+// ConnectTo configures the client for connection to the given URL; this URL
+// represents the address of the Keystone instance from which both the
+// authorization Token and the catalog of active services will be retrieved.
+func (c *Client) ConnectTo(catalogURL string) (*Client, error) {
+	if len(strings.TrimSpace(catalogURL)) == 0 {
+		catalogURL = os.Getenv("OS_AUTH_URL")
+	}
+
+	if catalogURL == "" {
+		log.Errorln("NewClient: no catalog URL, please provide URL of Keystone server either explicitly or as OS_AUTH_URL")
+		return nil, fmt.Errorf("no valid catalog URL")
+	}
+
+	c.Authenticator.Identity.API.requestor.Base(catalogURL)
+
+	return c, nil
+}
+
+// GetServices returns the set of currently supported services as per the
+// catalog; each service is defined by a name, a type and a set of endpoints,
+// each of which has an URL and specifies whether it is a public, administra-
+// tive or internal interface and the region to which it belongs.
+func (c *Client) GetServices() *[]Service {
+	return c.Authenticator.TokenInfo.Catalog
 }
 
 // IdentityV3 returns an IdentityV3API service reference.
