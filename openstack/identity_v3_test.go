@@ -23,7 +23,7 @@ func TestCreateTokenFromEnv(t *testing.T) {
 		t.Errorf("Identity.TestCreateTokenFromEnv: error initialising client: %v", err)
 		t.FailNow()
 	}
-	client.Identity.CreateTokenFromEnv()
+	client.IdentityV3().CreateTokenFromEnv()
 }
 
 func TestCreateTokenParam(t *testing.T) {
@@ -145,7 +145,7 @@ func TestCreateTokenParam(t *testing.T) {
 		},
 	}
 	for test, opts := range tests {
-		token, _, _, _ := client.Identity.CreateToken(opts)
+		token, _, _, _ := client.IdentityV3().CreateToken(opts)
 
 		if len(token) == 0 {
 			t.Errorf("Identity.TestCreateToken%s: no token returned", test)
