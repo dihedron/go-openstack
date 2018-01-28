@@ -101,22 +101,31 @@ func NewClient(httpClient *http.Client, userAgent *string) *Client {
 }
 
 //
-// ConnectTo configures the client for connection to the given URL; this URL
-// represents the address of the Keystone instance from which both the
-// authorization Token and the catalog of active services will be retrieved.
-func (c *Client) ConnectTo(catalogURL string) (*Client, error) {
-	if len(strings.TrimSpace(catalogURL)) == 0 {
-		catalogURL = os.Getenv("OS_AUTH_URL")
+// ConnectTo configures the client for connection to the given URL and tries
+// to perform a login using the credentials provided; the authURL represents
+// the address of the Keystone instance from which both the authorization
+// Token and the catalog of active services will be retrieved; ots is the set
+// of parameters needed for logging in to the identity service.
+func (c *Client) ConnectTo(authURL string, opts *LoginOpts) (*Client, error) {
+	if len(strings.TrimSpace(authURL)) == 0 {
+		authURL = os.Getenv("OS_AUTH_URL")
 	}
 
-	if catalogURL == "" {
+	if authURL == "" {
 		log.Errorln("NewClient: no catalog URL, please provide URL of Keystone server either explicitly or as OS_AUTH_URL")
 		return nil, fmt.Errorf("no valid catalog URL")
 	}
 
-	c.Authenticator.Identity.API.requestor.Base(catalogURL)
+	c.Authenticator.Identity.API.requestor.Base(authURL)
 
-	return c, nil
+	err := c.Authenticator.Login(opts)
+
+	return c, err
+}
+
+// Close closes the client and releases the identity token.
+func (c *Client) Close() error {
+	return c.Authenticator.Logout()
 }
 
 // GetServices returns the set of currently supported services as per the

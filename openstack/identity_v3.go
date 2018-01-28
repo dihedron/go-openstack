@@ -176,7 +176,7 @@ func CreateTokenRequestBuilder(sling *sling.Sling, opts interface{}) (request *h
 		}
 	}
 
-	log.Debugf("Identity.CreateTokenRequestBuilder: entity in request body is\n%s\n", log.ToJSON(entity))
+	log.Debugf("IdentityV3.CreateTokenRequestBuilder: entity in request body is\n%s\n", log.ToJSON(entity))
 
 	return sling.BodyJSON(entity).Request()
 }

@@ -30,8 +30,6 @@ func main() {
 	log.SetStream(os.Stdout)
 	log.SetTimeFormat("15:04:05.000")
 
-	client, _ := openstack.NewDefaultClient().ConnectTo(endpoint)
-
 	opts := &openstack.LoginOpts{
 		UserName:         openstack.String("admin"),
 		UserDomainName:   openstack.String("Default"),
@@ -39,9 +37,13 @@ func main() {
 		ScopeProjectName: openstack.String("admin"),
 		ScopeDomainName:  openstack.String("Default"),
 	}
-	client.Authenticator.Login(opts)
 
-	client.Authenticator.Logout()
+	client, _ := openstack.NewDefaultClient().ConnectTo(endpoint, opts)
+	defer client.Close()
+
+	//	client.Authenticator.Login(opts)
+
+	//client.Authenticator.Logout()
 
 	// copts := &openstack.CreateTokenOpts{
 	// 	/*
