@@ -9,10 +9,10 @@ import (
 	"github.com/dihedron/go-openstack/log"
 )
 
-// IdentityAPI represents the identity API providing all services regarding
-// authentication, authorization, role and resource management.
+// IdentityV3API represents the identity API ver. 3, providing support
+// for authentication, authorization, role and resource management.
 // See https://developer.openstack.org/api-ref/identity/v3/
-type IdentityAPI struct {
+type IdentityV3API struct {
 	API
 }
 
@@ -40,7 +40,7 @@ type CreateTokenOpts struct {
 
 // CreateToken uses the provided parameters to authenticate the client to the
 // Keystone server and receive a token.
-func (api *IdentityAPI) CreateToken(opts *CreateTokenOpts) (string, *Token, *Result, error) {
+func (api *IdentityV3API) CreateToken(opts *CreateTokenOpts) (string, *Token, *Result, error) {
 
 	type wrapper struct {
 		Token *Token `json:"token,omitempy"`
@@ -59,7 +59,7 @@ func (api *IdentityAPI) CreateToken(opts *CreateTokenOpts) (string, *Token, *Res
 
 // CreateTokenFromEnv uses the information in the environment to authenticate the
 // client to the Keystore server and receive a token.
-func (api *IdentityAPI) CreateTokenFromEnv() (string, *Token, *Result, error) {
+func (api *IdentityV3API) CreateTokenFromEnv() (string, *Token, *Result, error) {
 	opts := &CreateTokenOpts{
 		Method:         "password",
 		UserName:       String(os.Getenv("OS_USERNAME")),
@@ -196,6 +196,6 @@ type ReadTokenOpts struct {
 // ReadToken uses the provided parameters to read the given token and retrieve
 // information about it from the Identity server; this API requires a valid admin
 // token.
-func (api IdentityAPI) ReadToken(opts *ReadTokenOpts) (*Token, *Result, error) {
+func (api *IdentityV3API) ReadToken(opts *ReadTokenOpts) (*Token, *Result, error) {
 	return nil, nil, nil
 }

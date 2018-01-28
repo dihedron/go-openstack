@@ -21,7 +21,7 @@ type Authenticator struct {
 	// Identity is a reference to the identity service; at the resent version only
 	// Identity v3 is supported; future versions should be based on an interface{}
 	// and support both v2 and v3 API versions.
-	Identity *IdentityAPI // TODO: switch to interface{}
+	Identity *IdentityV3API // TODO: switch to interface{}
 
 	// Token is the token released at login by the Identity service; it
 	// must be set in all authenticated API requests to gain access to protected

@@ -88,7 +88,7 @@ func NewClient(catalogURL string, httpClient *http.Client, userAgent *string) (*
 		HTTPClient: *httpClient,
 		UserAgent:  *userAgent,
 		Authenticator: &Authenticator{
-			Identity: &IdentityAPI{
+			Identity: &IdentityV3API{
 				API{
 					client:    nil, // initialise later (*) with pointer to this same struct
 					requestor: sling.New().Base(catalogURL).Set("User-Agent", *userAgent).Client(httpClient),
@@ -107,9 +107,8 @@ func NewClient(catalogURL string, httpClient *http.Client, userAgent *string) (*
 	return client, nil
 }
 
-// Identity returns an IdentityAPI service at the given version. If no
-// version is specified, the latest version is returned.
-func (c *Client) Identity(version *string) *IdentityAPI {
+// IdentityV3 returns an IdentityV3API service reference.
+func (c *Client) IdentityV3() *IdentityV3API {
 	// TODO
 	return nil
 }
