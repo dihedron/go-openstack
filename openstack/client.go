@@ -38,7 +38,7 @@ type Client struct {
 	// treated in a special way since it is the only service that can be
 	// accessed without an authorisation; moreover it returns the list of
 	// all the other services, and publicy
-	Authenticator *AuthenticationAPI
+	Authenticator *Authenticator
 
 	// other services here
 
@@ -87,8 +87,8 @@ func NewClient(catalogURL string, httpClient *http.Client, userAgent *string) (*
 	client := &Client{
 		HTTPClient: *httpClient,
 		UserAgent:  *userAgent,
-		Authenticator: &AuthenticationAPI{
-			IdentityAPI: IdentityAPI{
+		Authenticator: &Authenticator{
+			Identity: &IdentityAPI{
 				API{
 					client:    nil, // initialise later (*) with pointer to this same struct
 					requestor: sling.New().Base(catalogURL).Set("User-Agent", *userAgent).Client(httpClient),
@@ -99,7 +99,7 @@ func NewClient(catalogURL string, httpClient *http.Client, userAgent *string) (*
 		},
 	}
 	// (*) initialised here!
-	client.Authenticator.client = client
+	client.Authenticator.Identity.client = client
 
 	// NOTE: other APIs will be dynamically added once we have
 	// access to the catalog via an authenticated Keystore request

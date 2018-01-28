@@ -10,15 +10,18 @@ import (
 	"github.com/dihedron/go-openstack/log"
 )
 
-// AuthenticationAPI is a specific kind of IdentityAPI (service) employed to get
-// the first access token and the complete catalog of available APIs (services
-// with their endpoints, interface types and regions). As such, it is treated
-// a bit differently from the IdentityAPI service: it provides some degree of
-// abstraction by requesting the first token and then having it reissued when
-// it is about to expire for each and every subsequent API call; moreover, it
-// populates the client's internal references to all available services.
-type AuthenticationAPI struct {
-	IdentityAPI
+// Authenticator uses the services of an IdentityAPI to get the first access
+// token and after that the complete catalog of available APIs (services
+// with their endpoints, interface types and regions). it provides some degree
+// of abstraction over the IdentityAPI, e.g. it checks when a token is about
+// to expire and makes sure it is reissued before an API call; moreover, it
+// populates the client's internal references to all other available services
+// as per the catalog returned by the IdentityAPI.
+type Authenticator struct {
+	// Identity is a reference to the identity service; at the resent version only
+	// Identity v3 is supported; future versions should be based on an interface{}
+	// and support both v2 and v3 API versions.
+	Identity *IdentityAPI // TODO: switch to interface{}
 
 	// Token is the token released at login by the Identity service; it
 	// must be set in all authenticated API requests to gain access to protected
@@ -50,7 +53,7 @@ type LoginOpts struct {
 // moreover this method parses the catalog and initialises all the other available
 // service API references using the information about services, their versions and
 // available endpoints.
-func (api *AuthenticationAPI) Login(opts *LoginOpts) error {
+func (auth *Authenticator) Login(opts *LoginOpts) error {
 	opts2 := &CreateTokenOpts{
 		NoCatalog:        false,
 		Method:           "password",
@@ -62,7 +65,7 @@ func (api *AuthenticationAPI) Login(opts *LoginOpts) error {
 		UnscopedToken:    opts.UnscopedLogin,
 	}
 
-	token, info, _, err := api.CreateToken(opts2)
+	token, info, _, err := auth.Identity.CreateToken(opts2)
 	if err != nil {
 		log.Errorf("AuthenticationAPI.Login: login failed: %v", err)
 		return err
@@ -70,8 +73,8 @@ func (api *AuthenticationAPI) Login(opts *LoginOpts) error {
 
 	log.Debugf("AuthenticationAPI.Login: token value is %q, token info is:\n%s\n", token, log.ToJSON(info))
 
-	api.TokenValue = String(token)
-	api.TokenInfo = info
+	auth.TokenValue = String(token)
+	auth.TokenInfo = info
 
 	if info.Catalog == nil {
 		log.Errorf("AuthenticationAPI.Login: no catalog info available")
@@ -87,12 +90,12 @@ func (api *AuthenticationAPI) Login(opts *LoginOpts) error {
 
 // Logout invalidates the current authentication token so that all succeding
 // API calls will fail as unauthorised.
-func (api *AuthenticationAPI) Logout() error {
-	if api.TokenValue != nil {
-		log.Debugf("AuthenticationAPI.Logout: invalidating authentication token %s", *api.TokenValue)
+func (auth *Authenticator) Logout() error {
+	if auth.TokenValue != nil {
+		log.Debugf("AuthenticationAPI.Logout: invalidating authentication token %s", *auth.TokenValue)
 		// TODO: api.DeleteToken()
-		api.TokenValue = nil
-		api.TokenInfo = nil
+		auth.TokenValue = nil
+		auth.TokenInfo = nil
 	}
 	return nil
 }

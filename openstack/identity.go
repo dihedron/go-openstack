@@ -9,6 +9,13 @@ import (
 	"github.com/dihedron/go-openstack/log"
 )
 
+// IdentityAPI represents the identity API providing all services regarding
+// authentication, authorization, role and resource management.
+// See https://developer.openstack.org/api-ref/identity/v3/
+type IdentityAPI struct {
+	API
+}
+
 // CreateTokenOpts contains the set of parameters and options used to
 // perform an authentication (create an authentication token).
 type CreateTokenOpts struct {

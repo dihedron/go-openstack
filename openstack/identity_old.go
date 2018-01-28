@@ -4,13 +4,6 @@
 
 package openstack
 
-// IdentityAPI represents the identity API providing all services regarding
-// authentication, authorization, role and resource management.
-// See https://developer.openstack.org/api-ref/identity/v3/
-type IdentityAPI struct {
-	API
-}
-
 /*
  * AUTHENTICATION AND TOKEN MANAGEMENT
  */
