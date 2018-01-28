@@ -5,8 +5,6 @@
 package openstack
 
 import (
-	"fmt"
-
 	"github.com/dihedron/go-openstack/log"
 )
 
@@ -67,23 +65,14 @@ func (auth *Authenticator) Login(opts *LoginOpts) error {
 
 	token, info, _, err := auth.Identity.CreateToken(opts2)
 	if err != nil {
-		log.Errorf("AuthenticationAPI.Login: login failed: %v", err)
+		log.Errorf("Authenticator.Login: login failed: %v", err)
 		return err
 	}
 
-	log.Debugf("AuthenticationAPI.Login: token value is %q, token info is:\n%s\n", token, log.ToJSON(info))
+	log.Debugf("Authenticator.Login: token value is %q, token info is:\n%s\n", token, log.ToJSON(info))
 
 	auth.TokenValue = String(token)
 	auth.TokenInfo = info
-
-	if info.Catalog == nil {
-		log.Errorf("AuthenticationAPI.Login: no catalog info available")
-		return fmt.Errorf("no catalog information available from identity service")
-	}
-
-	for _, service := range *info.Catalog {
-		log.Debugf("AuthenticationAPI.Login: initialising service %s (type: %s, id: %s)", *service.Name, *service.Type, *service.ID)
-	}
 
 	return nil
 }
@@ -92,7 +81,7 @@ func (auth *Authenticator) Login(opts *LoginOpts) error {
 // API calls will fail as unauthorised.
 func (auth *Authenticator) Logout() error {
 	if auth.TokenValue != nil {
-		log.Debugf("AuthenticationAPI.Logout: invalidating authentication token %s", *auth.TokenValue)
+		log.Debugf("Authenticator.Logout: invalidating authentication token %s", *auth.TokenValue)
 		// TODO: api.DeleteToken()
 		auth.TokenValue = nil
 		auth.TokenInfo = nil

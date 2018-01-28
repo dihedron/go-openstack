@@ -82,8 +82,7 @@ func NewClient(httpClient *http.Client, userAgent *string) *Client {
 		Authenticator: &Authenticator{
 			Identity: &IdentityV3API{
 				API{
-					client: nil, // initialise later (*) with pointer to this same struct
-					//requestor: sling.New().Base(catalogURL).Set("User-Agent", *userAgent).Client(httpClient),
+					client:    nil, // initialise later (*) with pointer to this same struct
 					requestor: sling.New().Set("User-Agent", *userAgent).Client(httpClient),
 				},
 			},
@@ -112,15 +111,28 @@ func (c *Client) ConnectTo(authURL string, opts *LoginOpts) (*Client, error) {
 	}
 
 	if authURL == "" {
-		log.Errorln("NewClient: no catalog URL, please provide URL of Keystone server either explicitly or as OS_AUTH_URL")
+		log.Errorln("Client.ConnectTo: no catalog URL, please provide URL of Keystone server either explicitly or as OS_AUTH_URL")
 		return nil, fmt.Errorf("no valid catalog URL")
 	}
 
 	c.Authenticator.Identity.API.requestor.Base(authURL)
 
 	err := c.Authenticator.Login(opts)
+	if err != nil {
+		log.Errorf("Client.ConnectTo: error logging in to the identity service at %q", authURL)
+		return c, err
+	}
 
-	return c, err
+	if c.Authenticator.TokenInfo.Catalog == nil {
+		log.Errorf("Client.ConnectTo: no catalog info available")
+		return c, fmt.Errorf("no catalog information available from identity service")
+	}
+
+	for _, service := range *c.Authenticator.TokenInfo.Catalog {
+		log.Debugf("Client.ConnectTo: initialising service %s (type: %s, id: %s)", *service.Name, *service.Type, *service.ID)
+	}
+
+	return c, nil
 }
 
 // Close closes the client and releases the identity token.
