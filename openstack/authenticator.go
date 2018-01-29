@@ -16,6 +16,9 @@ import (
 // populates the client's internal references to all other available services
 // as per the catalog returned by the IdentityAPI.
 type Authenticator struct {
+	// AuthURL is the URL at which the authentication service can be reaced, i.e.
+	// the URL of the public Keystone endpoint used for the first authentication.
+	AuthURL *string
 	// Identity is a reference to the identity service; at the resent version only
 	// Identity v3 is supported; future versions should be based on an interface{}
 	// and support both v2 and v3 API versions.

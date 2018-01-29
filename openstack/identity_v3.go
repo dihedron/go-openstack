@@ -42,19 +42,17 @@ type CreateTokenOpts struct {
 // Keystone server and receive a token.
 func (api *IdentityV3API) CreateToken(opts *CreateTokenOpts) (string, *Token, *Result, error) {
 
-	type wrapper struct {
+	wrapper := &struct {
 		Token *Token `json:"token,omitempy"`
-	}
+	}{}
 
-	wrapped := &wrapper{}
-	headers, result, err := api.Invoke(http.MethodPost, "/identity/v3/auth/tokens", opts, []string{"X-Subject-Token"}, wrapped, CreateTokenRequestBuilder, nil)
+	headers, result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", opts, []string{"X-Subject-Token"}, wrapper, CreateTokenRequestBuilder, nil)
 	if tokens, ok := headers["X-Subject-Token"]; ok {
 		if len(tokens) > 0 {
-			return headers["X-Subject-Token"][0], wrapped.Token, result, err
+			return headers["X-Subject-Token"][0], wrapper.Token, result, err
 		}
 	}
-	return "", wrapped.Token, result, err
-	//return "", token, result, err
+	return "", wrapper.Token, result, err
 }
 
 // CreateTokenFromEnv uses the information in the environment to authenticate the
@@ -196,6 +194,16 @@ type ReadTokenOpts struct {
 // ReadToken uses the provided parameters to read the given token and retrieve
 // information about it from the Identity server; this API requires a valid admin
 // token.
-func (api *IdentityV3API) ReadToken(opts *ReadTokenOpts) (*Token, *Result, error) {
-	return nil, nil, nil
+func (api *IdentityV3API) ReadToken(opts *ReadTokenOpts) (bool, *Result, error) {
+	wrapper := &struct {
+		Token *Token `json:"token,omitempy"`
+	}{}
+
+	headers, result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", opts, []string{"X-Subject-Token"}, wrapper, nil, nil)
+	if result.Code == 200 {
+		return true, result, err
+	}
+	log.Debugf("IdentityV3.ReadToken: header is %q\n", headers["X-Subject-Token"])
+
+	return false, result, err
 }

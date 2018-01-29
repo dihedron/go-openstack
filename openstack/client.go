@@ -40,16 +40,21 @@ type Client struct {
 	// all the other services, and publicy
 	Authenticator *Authenticator
 
-	// other services here
+	// This is the profile, that is the set of service, along with version, URL
+	// and interfaces reuqested by the user; this is used to apply a filter to
+	// the set of services and endpoints in the catalog.
+	Profile *Profile
 
-	//services map[]
+	// This is the set of available services; it is populated as soon as the
+	// client performs a logon to the identity service and retrieves the catalog.
+	Services map[string]interface{}
 }
 
 // NewDefaultClient returns a new instance of a go-openstack SDK client,
 // with sensible defaults for the http.Ckient and the user agent string;
 // the Keystone URL must be provided.
-func NewDefaultClient() *Client {
-	return NewClient(nil, nil)
+func NewDefaultClient(authURL string) *Client {
+	return NewClient(authURL, nil, nil)
 }
 
 // NewClient returns a new instance of a go-openstack SDK client; the
@@ -58,9 +63,22 @@ func NewDefaultClient() *Client {
 // parameter allows to specify one's own User-Agent string. If any of the
 // parameters is omitted (that is, nil), sensible defaults are automatically
 // provided by the SDK.
-func NewClient(httpClient *http.Client, userAgent *string) *Client {
+func NewClient(authURL string, httpClient *http.Client, userAgent *string) *Client {
+
+	if len(strings.TrimSpace(authURL)) == 0 {
+		authURL = os.Getenv("OS_AUTH_URL")
+		log.Debugf("NewClient: identity service URL through $OS_AUTH_URL\n")
+	}
+
+	if authURL == "" {
+		log.Errorln("NewClient: no identity service URL, please provide URL of identity service either explicitly or through $OS_AUTH_URL")
+		return nil
+	}
+
+	log.Debugf("NewClient: connecting to identity service at %q\n", authURL)
 
 	if httpClient == nil {
+		log.Debugln("NewClient: connecting using library-provided HTTP client")
 		httpClient = &http.Client{
 			Timeout: time.Second * 10,
 			Transport: &http.Transport{
@@ -76,22 +94,26 @@ func NewClient(httpClient *http.Client, userAgent *string) *Client {
 		userAgent = String(DefaultUserAgent)
 	}
 
+	log.Debugf("NewClient: HTTP client will present itself as %q\n", userAgent)
+
 	client := &Client{
 		HTTPClient: *httpClient,
 		UserAgent:  *userAgent,
-		Authenticator: &Authenticator{
-			Identity: &IdentityV3API{
-				API{
-					client:    nil, // initialise later (*) with pointer to this same struct
-					requestor: sling.New().Set("User-Agent", *userAgent).Client(httpClient),
-				},
-			},
-			TokenValue: nil,
-			TokenInfo:  nil,
-		},
 	}
-	// (*) initialised here!
-	client.Authenticator.Identity.client = client
+
+	// now we've got a reference to client and we can finally
+	// initialise the authenticator with a backref to it
+	client.Authenticator = &Authenticator{
+		AuthURL: String(authURL),
+		Identity: &IdentityV3API{
+			API{
+				client:    client,
+				requestor: sling.New().Set("User-Agent", *userAgent).Client(httpClient).Base(authURL),
+			},
+		},
+		TokenValue: nil,
+		TokenInfo:  nil,
+	}
 
 	// NOTE: other APIs will be dynamically added once we have
 	// access to the catalog via an authenticated Keystore request
@@ -99,43 +121,38 @@ func NewClient(httpClient *http.Client, userAgent *string) *Client {
 	return client
 }
 
-//
-// ConnectTo configures the client for connection to the given URL and tries
-// to perform a login using the credentials provided; the authURL represents
-// the address of the Keystone instance from which both the authorization
-// Token and the catalog of active services will be retrieved; ots is the set
-// of parameters needed for logging in to the identity service.
-func (c *Client) ConnectTo(authURL string, opts *LoginOpts) (*Client, error) {
-	if len(strings.TrimSpace(authURL)) == 0 {
-		authURL = os.Getenv("OS_AUTH_URL")
+// Connect attempts to perform a login to an identity service already configured
+// via a call to For; the opts parameter is the set of values needed for logging
+// in to the identity service.
+func (c *Client) Connect(opts *LoginOpts) error {
+
+	if c.Authenticator.AuthURL == nil {
+		log.Errorf("Client.Connect: no identity service URL configured")
+		return fmt.Errorf("no valid identity service URL")
 	}
 
-	if authURL == "" {
-		log.Errorln("Client.ConnectTo: no catalog URL, please provide URL of Keystone server either explicitly or as OS_AUTH_URL")
-		return nil, fmt.Errorf("no valid catalog URL")
-	}
-
-	c.Authenticator.Identity.API.requestor.Base(authURL)
+	c.Authenticator.Logout()
 
 	err := c.Authenticator.Login(opts)
 	if err != nil {
-		log.Errorf("Client.ConnectTo: error logging in to the identity service at %q", authURL)
-		return c, err
+		log.Errorf("Client.Connect: error logging in to the identity service at %q", c.Authenticator.AuthURL)
+		return err
 	}
 
 	if c.Authenticator.TokenInfo.Catalog == nil {
-		log.Errorf("Client.ConnectTo: no catalog info available")
-		return c, fmt.Errorf("no catalog information available from identity service")
+		log.Errorf("Client.Connect: no catalog info available")
+		return fmt.Errorf("no catalog information available from identity service")
 	}
 
 	for _, service := range *c.Authenticator.TokenInfo.Catalog {
-		log.Debugf("Client.ConnectTo: initialising service %s (type: %s, id: %s)", *service.Name, *service.Type, *service.ID)
+		log.Debugf("Client.Connect: initialising service %s (type: %s, id: %s)", *service.Name, *service.Type, *service.ID)
 	}
 
-	return c, nil
+	return nil
 }
 
-// Close closes the client and releases the identity token.
+// Close closes the client and releases the identity token; it can be used
+// to defer client cleanup.
 func (c *Client) Close() error {
 	return c.Authenticator.Logout()
 }
@@ -153,25 +170,3 @@ func (c *Client) IdentityV3() *IdentityV3API {
 	// TODO
 	return nil
 }
-
-// {
-// 	"id": "c73e65c7a9bf4b0c931b1f11e2f62071",
-// 	"name": "keystone",
-// 	"type": "identity",
-// 	"endpoints": [
-// 	  {
-// 		"id": "4d856dd8a69c4aefb83d88a32c2106ba",
-// 		"interface": "public",
-// 		"region": "RegionOne",
-// 		"region_id": "RegionOne",
-// 		"url": "http://192.168.56.101/identity"
-// 	  },
-// 	  {
-// 		"id": "ed9e3bdcd3e14f92aab4e04dbe75044b",
-// 		"interface": "admin",
-// 		"region": "RegionOne",
-// 		"region_id": "RegionOne",
-// 		"url": "http://192.168.56.101/identity"
-// 	  }
-// 	]
-// },

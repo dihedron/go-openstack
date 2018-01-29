@@ -18,20 +18,20 @@ func TestCreateTokenFromEnv(t *testing.T) {
 	log.SetStream(os.Stdout)
 	log.SetTimeFormat("15:04:05.000")
 
-	client, err := NewDefaultClient("")
-	if err != nil {
-		t.Errorf("Identity.TestCreateTokenFromEnv: error initialising client: %v", err)
+	client := NewDefaultClient("")
+	if client == nil {
+		t.Errorf("Identity.TestCreateTokenFromEnv: error initialising client")
 		t.FailNow()
 	}
 	client.IdentityV3().CreateTokenFromEnv()
 }
 
 func TestCreateTokenParam(t *testing.T) {
-	endpoint := "http://192.168.56.101" // my shiny devstack :-)
+	endpoint := "http://192.168.56.101/identity/" // my shiny devstack :-)
 
-	client, err := NewDefaultClient(endpoint)
-	if err != nil {
-		t.Errorf("Identity.TestCreateTokenFromEnv: error initialising client: %v", err)
+	client := NewDefaultClient(endpoint)
+	if client == nil {
+		t.Errorf("Identity.TestCreateTokenFromEnv: error initialising client")
 		t.FailNow()
 	}
 

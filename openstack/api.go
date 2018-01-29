@@ -40,7 +40,7 @@ const (
 	Internal
 )
 */
-
+/*
 // APIKey is
 type APIKey struct {
 	// Name is the name of the service (or API), e.g. "nova", "glance" etc.
@@ -65,6 +65,7 @@ type APIKey struct {
 	// configurations and security considerations.
 	Interface string
 }
+*/
 
 // RequestBuilder is the signature of a function that, given a Sling,
 // fills in the information to turn it into an http.Request ready to

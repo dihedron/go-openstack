@@ -22,7 +22,7 @@ func main() {
 		if len(os.Args) >= 2 {
 			endpoint = os.Args[1]
 		} else {
-			endpoint = "http://192.168.56.101" // my shiny devstack :-)
+			endpoint = "http://192.168.56.101/identity/" // my shiny devstack :-)
 		}
 	}
 
@@ -30,7 +30,7 @@ func main() {
 	log.SetStream(os.Stdout)
 	log.SetTimeFormat("15:04:05.000")
 
-	opts := &openstack.LoginOpts{
+	copts := &openstack.LoginOpts{
 		UserName:         openstack.String("admin"),
 		UserDomainName:   openstack.String("Default"),
 		UserPassword:     openstack.String("password"),
@@ -38,10 +38,25 @@ func main() {
 		ScopeDomainName:  openstack.String("Default"),
 	}
 
-	client, _ := openstack.NewDefaultClient().ConnectTo(endpoint, opts)
+	client := openstack.NewDefaultClient(endpoint)
+	client.Connect(copts)
 	defer client.Close()
 
-	//	client.Authenticator.Login(opts)
+	//client.InitProfile()
+	//client.SaveProfileTo("./go-openstack-profile.json")
+
+	client.LoadProfileFrom("./my-profile.json")
+
+	// ropts := &openstack.ReadTokenOpts{
+	// 	AllowExpired: true,
+	// 	NoCatalog:    false,
+	// 	SubjectToken: *client.Authenticator.TokenValue,
+	// }
+	// if ok, _, _ := client.Identity.ReadToken(rops); ok {
+	// 	log.Debug("main: token read")
+	// }
+
+	// client.Authenticator.Login(opts)
 
 	//client.Authenticator.Logout()
 
