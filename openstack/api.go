@@ -30,43 +30,6 @@ type API struct {
 	requestor *sling.Sling
 }
 
-/*
-const (
-	// Public APIs are publicly accessible by subscribers.
-	Public APIType = iota
-	// Admin APIs are accessible by administrators.
-	Admin
-	// Internal APIs are accessible by other services.
-	Internal
-)
-*/
-/*
-// APIKey is
-type APIKey struct {
-	// Name is the name of the service (or API), e.g. "nova", "glance" etc.
-	Name string
-
-	// Region represents the region for which a given endpoint is valid.
-	Region string
-
-	// Version represents the API version (e.g. "v2" or "v3") for the given
-	// service (e.g. "keystone").
-	Version string
-
-	// Interface represents the type of an API; an API (that is, a service
-	// such as "nova" or "keystone") may be exposed via multiple interfaces,
-	// called endpoints; these interfaces can be:
-	// - "public", that is devoted to untrusted users such as subscribers in a
-	//    public cloud;
-	// - "admin", that is accessible only by administrators and used for internal
-	//    management
-	// - "internal", that is used by services to connect to each other.
-	// The characteristics of these endpoints may lead to different network
-	// configurations and security considerations.
-	Interface string
-}
-*/
-
 // RequestBuilder is the signature of a function that, given a Sling,
 // fills in the information to turn it into an http.Request ready to
 // be submitted by the HTTP client. Its task is that of adding headers,

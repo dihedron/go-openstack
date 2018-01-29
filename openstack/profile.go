@@ -34,10 +34,25 @@ type Filter struct {
 	// Name os the name of the service, e.g. "nova".
 	Name *string `json:"name,omitempty"`
 	// Region is the OpenStack region to which the service applies.
-	Region      *string `json:"region,omitempty"`
-	Interface   *string `json:"interface,omitempty"`
-	Version     *string `json:"version,omitempty"`
-	APIVersion  *string `json:"microversion,omitempty"`
+	Region *string `json:"region,omitempty"`
+	// Interface represents the type of an API; an API (that is, a service
+	// such as "nova" or "keystone") may be exposed via multiple interfaces,
+	// called endpoints; these interfaces can be:
+	// - "public", that is devoted to untrusted users such as subscribers in a
+	//    public cloud;
+	// - "admin", that is accessible only by administrators and used for internal
+	//    management
+	// - "internal", that is used by services to connect to each other.
+	// The characteristics of these endpoints may lead to different network
+	// configurations and security considerations.
+	Interface *string `json:"interface,omitempty"`
+	// Version represents the service version (e.g. "v2" or "v3") for the given
+	// service (e.g. "keystone").
+	Version *string `json:"version,omitempty"`
+	// APIVersion represents the API microversion; micro-versions are only
+	// supported on a subset of services.
+	APIVersion *string `json:"microversion,omitempty"`
+	// EndpointURL is the base URL for all REST APIs exposed by the given service.
 	EndpointURL *string `json:"url,omitempty"`
 }
 
