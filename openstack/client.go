@@ -99,6 +99,7 @@ func NewClient(authURL string, httpClient *http.Client, userAgent *string) *Clie
 	client := &Client{
 		HTTPClient: *httpClient,
 		UserAgent:  *userAgent,
+		Services:   map[string]interface{}{},
 	}
 
 	// now we've got a reference to client and we can finally
@@ -108,7 +109,7 @@ func NewClient(authURL string, httpClient *http.Client, userAgent *string) *Clie
 		Identity: &IdentityV3API{
 			API{
 				client:    client,
-				requestor: sling.New().Set("User-Agent", *userAgent).Client(httpClient).Base(authURL),
+				requestor: sling.New().Set("User-Agent", *userAgent).Client(httpClient).Base(NormaliseURL(authURL)),
 			},
 		},
 		TokenValue: nil,
@@ -153,23 +154,36 @@ func (c *Client) Connect(opts *LoginOpts) error {
 
 			for _, endpoint := range *service.Endpoints {
 				// log.Debugf("Client.Connect: checking endpoint, interface %q, region %q, URL %q\n", *endpoint.Interface, *endpoint.Region, *endpoint.URL)
-			inner:
+				// inner:
 				for _, filter := range c.Profile.Filters {
 					// log.Debugf("Client.Connect: does filter type %q, interface %q, region %q, URL %q match?\n", *filter.Type, *endpoint.Interface, *endpoint.Region, *endpoint.URL)
 					if *service.Type != *filter.Type {
-						continue inner
+						continue //inner
 					}
 					if *endpoint.Interface != *filter.Interface {
-						continue inner
+						continue //inner
 					}
 					if *endpoint.Region != *filter.Region {
-						continue inner
+						continue //inner
 					}
 					if *endpoint.URL != *filter.EndpointURL {
-						continue inner
+						continue //inner
 					}
-					log.Debugf("Client.Connect: service %q (type: %q, interface %q, region %q, URL %q) matches filter, adding to catalog\n", *service.Name, *service.Type, *endpoint.Interface,
-						*endpoint.Region, *endpoint.URL)
+
+					log.Debugf("Client.Connect: service %q (type: %q, interface %q, region %q, URL %q) matches filter, adding to catalog\n", *service.Name, *service.Type, *endpoint.Interface, *endpoint.Region, *endpoint.URL)
+
+					switch *service.Type {
+					case "identity":
+						c.Services[*service.Type] = IdentityV3API{
+							API{
+								client:    c,
+								requestor: sling.New().Set("User-Agent", c.UserAgent).Client(&c.HTTPClient).Base(NormaliseURL(*endpoint.URL)),
+							},
+						}
+					default:
+						log.Debugf("Client.Connect: unsupported service %q (type: %q)\n", *service.Name, *service.Type)
+					}
+
 				}
 			}
 		}
@@ -181,6 +195,7 @@ func (c *Client) Connect(opts *LoginOpts) error {
 // Close closes the client and releases the identity token; it can be used
 // to defer client cleanup.
 func (c *Client) Close() error {
+	c.Services = map[string]interface{}{}
 	return c.Authenticator.Logout()
 }
 
@@ -194,6 +209,11 @@ func (c *Client) GetServices() *[]Service {
 
 // IdentityV3 returns an IdentityV3API service reference.
 func (c *Client) IdentityV3() *IdentityV3API {
-	// TODO
+	for k, v := range c.Services {
+		if k == "identity" {
+			api := v.(IdentityV3API)
+			return &api
+		}
+	}
 	return nil
 }

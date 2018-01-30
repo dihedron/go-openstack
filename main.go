@@ -30,7 +30,7 @@ func main() {
 	log.SetStream(os.Stdout)
 	log.SetTimeFormat("15:04:05.000")
 
-	copts := &openstack.LoginOpts{
+	opts1 := &openstack.LoginOpts{
 		UserName:         openstack.String("admin"),
 		UserDomainName:   openstack.String("Default"),
 		UserPassword:     openstack.String("password"),
@@ -40,8 +40,23 @@ func main() {
 
 	client := openstack.NewDefaultClient(endpoint)
 	client.LoadProfileFrom("./my-profile.json")
-	client.Connect(copts)
+	client.Connect(opts1)
 	defer client.Close()
+
+	opts2 := &openstack.CreateTokenOpts{
+		Method:           "password",
+		UserName:         openstack.String("admin"),
+		UserDomainName:   openstack.String("Default"),
+		UserPassword:     openstack.String("password"),
+		ScopeProjectName: openstack.String("admin"),
+		ScopeDomainName:  openstack.String("Default"),
+		NoCatalog:        true,
+	}
+	token, info, result, err := client.IdentityV3().CreateToken(opts2)
+	log.Debugf("main: token is %q\n", token)
+	log.Debugf("main: info is\n%s\n", log.ToJSON(info))
+	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	log.Debugf("main: call resulted in %v\n", err)
 
 	//client.InitProfile()
 	//client.SaveProfileTo("./go-openstack-profile.json")
