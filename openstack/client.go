@@ -144,8 +144,35 @@ func (c *Client) Connect(opts *LoginOpts) error {
 		return fmt.Errorf("no catalog information available from identity service")
 	}
 
-	for _, service := range *c.Authenticator.TokenInfo.Catalog {
-		log.Debugf("Client.Connect: initialising service %s (type: %s, id: %s)", *service.Name, *service.Type, *service.ID)
+	if c.Profile != nil {
+		log.Debugln("Client.Connect: applying filters to catalog")
+		// look for a match between a service and a filter
+
+		for _, service := range *c.Authenticator.TokenInfo.Catalog {
+			// log.Debugf("Client.Connect: checking service %q (%q)\n", *service.Type, *service.Name)
+
+			for _, endpoint := range *service.Endpoints {
+				// log.Debugf("Client.Connect: checking endpoint, interface %q, region %q, URL %q\n", *endpoint.Interface, *endpoint.Region, *endpoint.URL)
+			inner:
+				for _, filter := range c.Profile.Filters {
+					// log.Debugf("Client.Connect: does filter type %q, interface %q, region %q, URL %q match?\n", *filter.Type, *endpoint.Interface, *endpoint.Region, *endpoint.URL)
+					if *service.Type != *filter.Type {
+						continue inner
+					}
+					if *endpoint.Interface != *filter.Interface {
+						continue inner
+					}
+					if *endpoint.Region != *filter.Region {
+						continue inner
+					}
+					if *endpoint.URL != *filter.EndpointURL {
+						continue inner
+					}
+					log.Debugf("Client.Connect: service %q (type: %q, interface %q, region %q, URL %q) matches filter, adding to catalog\n", *service.Name, *service.Type, *endpoint.Interface,
+						*endpoint.Region, *endpoint.URL)
+				}
+			}
+		}
 	}
 
 	return nil

@@ -39,13 +39,12 @@ func main() {
 	}
 
 	client := openstack.NewDefaultClient(endpoint)
+	client.LoadProfileFrom("./my-profile.json")
 	client.Connect(copts)
 	defer client.Close()
 
 	//client.InitProfile()
 	//client.SaveProfileTo("./go-openstack-profile.json")
-
-	client.LoadProfileFrom("./my-profile.json")
 
 	// ropts := &openstack.ReadTokenOpts{
 	// 	AllowExpired: true,
