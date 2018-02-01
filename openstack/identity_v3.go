@@ -47,11 +47,14 @@ func (api *IdentityV3API) CreateToken(opts *CreateTokenOpts) (string, *Token, *R
 		SubjectToken *string `header:"X-Subject-Token"`
 	}{}
 
-	headers, result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", opts /*[]string{"X-Subject-Token"}, */, wrapper, CreateTokenRequestBuilder, nil)
-	if tokens, ok := headers["X-Subject-Token"]; ok {
-		if len(tokens) > 0 {
-			return headers["X-Subject-Token"][0], wrapper.Token, result, err
-		}
+	result, _, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", opts, wrapper, CreateTokenRequestBuilder, nil)
+	// if tokens, ok := headers["X-Subject-Token"]; ok {
+	// 	if len(tokens) > 0 {
+	// 		return headers["X-Subject-Token"][0], wrapper.Token, result, err
+	// 	}
+	// }
+	if wrapper.SubjectToken != nil {
+		return *wrapper.SubjectToken, wrapper.Token, result, err
 	}
 	return "", wrapper.Token, result, err
 }
@@ -201,11 +204,11 @@ func (api *IdentityV3API) ReadToken(opts *ReadTokenOpts) (bool, *Result, error) 
 		SubjectToken *string `header:"X-Subject-Token"`
 	}{}
 
-	headers, result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", opts, wrapper, nil, nil)
+	result, _, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", opts, wrapper, nil, nil)
 	if result.Code == 200 {
 		return true, result, err
 	}
-	log.Debugf("IdentityV3.ReadToken: header is %q\n", headers["X-Subject-Token"])
+	log.Debugf("IdentityV3.ReadToken: header is %q\n", wrapper.SubjectToken)
 
 	return false, result, err
 }

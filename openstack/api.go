@@ -46,7 +46,7 @@ type RequestBuilder func(sling *sling.Sling, opts interface{}) (*http.Request, e
 // to extract from the response; the entity paraeter is the struct to be
 // used as a template for decoding the JSON response in the response
 // payload.
-type ResponseHandler func(response *http.Response, entity interface{}) (Result, map[string][]string, interface{}, error)
+type ResponseHandler func(response *http.Response, entity interface{}) (Result, []byte, error)
 
 // Invoke calls an API endpoint at the given path (under the base path
 // provided by the api receiver) with the given HTTP method; the request
@@ -60,7 +60,7 @@ type ResponseHandler func(response *http.Response, entity interface{}) (Result, 
 // the opts struct as a "json"-annotated struct closely matching the expected
 // request entity payload. If no builder or handler is provided, the method
 // uses their default implementations.
-func (api *API) Invoke(method string, url string, input interface{}, output interface{}, builder RequestBuilder, handler ResponseHandler) (map[string][]string, *Result, error) {
+func (api *API) Invoke(method string, url string, input interface{}, output interface{}, builder RequestBuilder, handler ResponseHandler) (*Result, []byte, error) {
 
 	log.Debugf("API.Invoke: calling method %q on URL %q", method, url)
 
@@ -94,21 +94,21 @@ func (api *API) Invoke(method string, url string, input interface{}, output inte
 		handler = DefaultResponseHandler
 	}
 
-	result, headers, output, err := handler(response, output)
+	result, data, err := handler(response, output)
 	if err != nil {
 		log.Errorf("API.Invoke: error handling response: %v", err)
-		return nil, &result, err
+		return &result, data, err
 	}
 
 	if !result.IsInformational() && !result.IsSuccess() {
 		log.Warnf("API.Invoke: status code indicates some problem: %v", result)
 	}
 
-	for key, values := range headers {
-		log.Debugf("API.Invoke: header %q => %q", key, values)
-	}
+	// for key, values := range headers {
+	// 	log.Debugf("API.Invoke: header %q => %q", key, values)
+	// }
 
-	return headers, &result, nil
+	return &result, data, nil
 }
 
 // DefaultRequestQueryBuilder is the function used by the default builder to populate
@@ -171,30 +171,29 @@ func DefaultRequestBuilder(sling *sling.Sling, opts interface{}) (*http.Request,
 // by custom implementations of ResponseHandler's so one doesn't have to reinvent the wheel
 // simply because a custom entity building logic (different from that of the default handler)
 // is needed.
-func DefaultResponseHeadersHandler(response *http.Response, output interface{}) map[string][]string {
+func DefaultResponseHeadersHandler(response *http.Response, output interface{}) error /*map[string][]string*/ {
 
-	keys := []string{}
 	t := reflect.TypeOf(output).Elem()
 	v := reflect.ValueOf(output).Elem()
+	//log.Debugf("API.DefaultResponseHeadersHandler: %T, %T, %d", t, v, v.Kind)
 	for i := 0; i < t.NumField(); i++ {
 		tag := t.Field(i).Tag.Get("header")
 		if len(strings.TrimSpace(tag)) > 0 {
-			value := reflect.ValueOf(v.Field(i).Interface()).String()
-			log.Debugf("API.DefaultResponseHeadersHandler: querying header %q", tag, value, value)
-			keys = append(keys, tag)
+			//log.Debugf("API.DefaultResponseHeadersHandler: querying header %q", tag)
+			value := v.Field(i)
+			//log.Debugf("API.DefaultResponseHeadersHandler: settable? %t nil? %t ptr? %t (%T, %v)", value.CanSet(), value.IsNil(), value.Kind() == reflect.Ptr, value, value)
+			if value.Kind() == reflect.Ptr {
+				value.Set(reflect.New(value.Type().Elem()))
+				value.Elem().SetString(response.Header.Get(tag))
+			} else if value.Kind() == reflect.String {
+				// TODO: test
+				value.SetString("ciao")
+			} else {
+				// there is an error????
+			}
 		}
 	}
-
-	var headers map[string][]string
-
-	if keys != nil {
-		headers = map[string][]string{}
-		for _, key := range keys {
-			log.Debugf("API.DefaultResponseHeadersHandler: appending header from result %q => %q", key, response.Header.Get(key))
-			headers[key] = append(headers[key], response.Header.Get(key))
-		}
-	}
-	return headers
+	return nil
 }
 
 // DefaultResponseEntityHandler is the function used by the default handler to extract
@@ -202,7 +201,7 @@ func DefaultResponseHeadersHandler(response *http.Response, output interface{}) 
 // implementations of ResponseHandler's so one doesn't have to reinvent the wheel simply
 // because a custom headers extraction logic (different from that of the default handler)
 // is needed.
-func DefaultResponseEntityHandler(response *http.Response, entity interface{}) (interface{}, error) {
+func DefaultResponseEntityHandler(response *http.Response, output interface{}) ([]byte, error) {
 
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
@@ -212,14 +211,14 @@ func DefaultResponseEntityHandler(response *http.Response, entity interface{}) (
 
 	log.Debugf("API.DefaultResponseEntityHandler: the response payload is:\n%s\n", string(data))
 
-	if entity != nil {
+	if output != nil {
 		buffer := bytes.NewBuffer(data)
-		if err := json.NewDecoder(buffer).Decode(entity); err != nil {
+		if err := json.NewDecoder(buffer).Decode(output); err != nil {
 			log.Errorf("Client.DefaultResponseEntityHandler: error decoding response into entity: %v", err)
-			return nil, err
+			return data, err
 		}
-		log.Debugf("API.DefaultResponseEntityHandler: deserialised entity is:\n%s\n", log.ToJSON(entity))
-		return entity, nil
+		log.Debugf("API.DefaultResponseEntityHandler: deserialised entity is:\n%s\n", log.ToJSON(output))
+		return data, nil
 	}
 
 	return data, nil
@@ -230,9 +229,9 @@ func DefaultResponseEntityHandler(response *http.Response, entity interface{}) (
 // HTTP headers using the given set of keys; the entity is extracted from
 // the HTTP response payload using the entity struct as the base structure
 // to fill information into.
-func DefaultResponseHandler(response *http.Response, output interface{}) (Result, map[string][]string, interface{}, error) {
-	headers := DefaultResponseHeadersHandler(response, output)
-	entity, err := DefaultResponseEntityHandler(response, output)
+func DefaultResponseHandler(response *http.Response, output interface{}) (Result, []byte, error) {
+	err := DefaultResponseHeadersHandler(response, output)
+	data, err := DefaultResponseEntityHandler(response, output)
 	result := NewResult(response)
-	return result, headers, entity, err
+	return result, data, err
 }
