@@ -46,7 +46,7 @@ type RequestBuilder func(sling *sling.Sling, opts interface{}) (*http.Request, e
 // to extract from the response; the entity paraeter is the struct to be
 // used as a template for decoding the JSON response in the response
 // payload.
-type ResponseHandler func(response *http.Response, keys []string, entity interface{}) (Result, map[string][]string, interface{}, error)
+type ResponseHandler func(response *http.Response, entity interface{}) (Result, map[string][]string, interface{}, error)
 
 // Invoke calls an API endpoint at the given path (under the base path
 // provided by the api receiver) with the given HTTP method; the request
@@ -60,7 +60,7 @@ type ResponseHandler func(response *http.Response, keys []string, entity interfa
 // the opts struct as a "json"-annotated struct closely matching the expected
 // request entity payload. If no builder or handler is provided, the method
 // uses their default implementations.
-func (api *API) Invoke(method string, url string, opts interface{}, keys []string, entity interface{}, builder RequestBuilder, handler ResponseHandler) (map[string][]string, *Result, error) {
+func (api *API) Invoke(method string, url string, input interface{}, output interface{}, builder RequestBuilder, handler ResponseHandler) (map[string][]string, *Result, error) {
 
 	log.Debugf("API.Invoke: calling method %q on URL %q", method, url)
 
@@ -76,7 +76,7 @@ func (api *API) Invoke(method string, url string, opts interface{}, keys []strin
 		builder = DefaultRequestBuilder
 	}
 
-	request, err := builder(sling, opts)
+	request, err := builder(sling, input)
 	if err != nil {
 		log.Errorf("API.Invoke: error creating request: %v", err)
 		return nil, nil, err
@@ -94,7 +94,7 @@ func (api *API) Invoke(method string, url string, opts interface{}, keys []strin
 		handler = DefaultResponseHandler
 	}
 
-	result, headers, entity, err := handler(response, keys, entity)
+	result, headers, output, err := handler(response, output)
 	if err != nil {
 		log.Errorf("API.Invoke: error handling response: %v", err)
 		return nil, &result, err
@@ -132,7 +132,7 @@ func DefaultRequestHeadersBuilder(sling *sling.Sling, opts interface{}) *sling.S
 		tag := t.Field(i).Tag.Get("header")
 		if len(strings.TrimSpace(tag)) > 0 {
 			value := reflect.ValueOf(v.Field(i).Interface()).String()
-			log.Debugf("API.DefaultRequestBuilder: adding header %q => %q", tag, value)
+			log.Debugf("API.DefaultRequestBuilder: adding header %q => %v", tag, value)
 			sling.Add(tag, value)
 		}
 	}
@@ -171,12 +171,26 @@ func DefaultRequestBuilder(sling *sling.Sling, opts interface{}) (*http.Request,
 // by custom implementations of ResponseHandler's so one doesn't have to reinvent the wheel
 // simply because a custom entity building logic (different from that of the default handler)
 // is needed.
-func DefaultResponseHeadersHandler(response *http.Response, keys []string) map[string][]string {
+func DefaultResponseHeadersHandler(response *http.Response, output interface{}) map[string][]string {
+
+	keys := []string{}
+	t := reflect.TypeOf(output).Elem()
+	v := reflect.ValueOf(output).Elem()
+	for i := 0; i < t.NumField(); i++ {
+		tag := t.Field(i).Tag.Get("header")
+		if len(strings.TrimSpace(tag)) > 0 {
+			value := reflect.ValueOf(v.Field(i).Interface()).String()
+			log.Debugf("API.DefaultResponseHeadersHandler: querying header %q", tag, value, value)
+			keys = append(keys, tag)
+		}
+	}
+
 	var headers map[string][]string
 
 	if keys != nil {
 		headers = map[string][]string{}
 		for _, key := range keys {
+			log.Debugf("API.DefaultResponseHeadersHandler: appending header from result %q => %q", key, response.Header.Get(key))
 			headers[key] = append(headers[key], response.Header.Get(key))
 		}
 	}
@@ -216,9 +230,9 @@ func DefaultResponseEntityHandler(response *http.Response, entity interface{}) (
 // HTTP headers using the given set of keys; the entity is extracted from
 // the HTTP response payload using the entity struct as the base structure
 // to fill information into.
-func DefaultResponseHandler(response *http.Response, keys []string, entity interface{}) (Result, map[string][]string, interface{}, error) {
-	headers := DefaultResponseHeadersHandler(response, keys)
-	entity, err := DefaultResponseEntityHandler(response, entity)
+func DefaultResponseHandler(response *http.Response, output interface{}) (Result, map[string][]string, interface{}, error) {
+	headers := DefaultResponseHeadersHandler(response, output)
+	entity, err := DefaultResponseEntityHandler(response, output)
 	result := NewResult(response)
 	return result, headers, entity, err
 }

@@ -5,7 +5,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/dihedron/go-openstack/log"
@@ -15,7 +14,7 @@ import (
 // https://developer.openstack.org/sdks/python/openstacksdk/users/profile.html#openstack.profile.Profile
 func main() {
 
-	fmt.Println("---------------------------------------------------------------------")
+	log.Debugf("---------------------------------------------------------------------")
 
 	endpoint := os.Getenv("OS_AUTH_URL")
 	if endpoint == "" {
@@ -43,6 +42,8 @@ func main() {
 	client.Connect(opts1)
 	defer client.Close()
 
+	log.Debugf("---------------------------------------------------------------------")
+
 	opts2 := &openstack.CreateTokenOpts{
 		Method:           "password",
 		UserName:         openstack.String("admin"),
@@ -57,6 +58,8 @@ func main() {
 	log.Debugf("main: info is\n%s\n", log.ToJSON(info))
 	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
 	log.Debugf("main: call resulted in %v\n", err)
+
+	//client.Rea
 
 	//client.InitProfile()
 	//client.SaveProfileTo("./go-openstack-profile.json")

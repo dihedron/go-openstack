@@ -43,10 +43,11 @@ type CreateTokenOpts struct {
 func (api *IdentityV3API) CreateToken(opts *CreateTokenOpts) (string, *Token, *Result, error) {
 
 	wrapper := &struct {
-		Token *Token `json:"token,omitempy"`
+		Token        *Token  `json:"token,omitempy"`
+		SubjectToken *string `header:"X-Subject-Token"`
 	}{}
 
-	headers, result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", opts, []string{"X-Subject-Token"}, wrapper, CreateTokenRequestBuilder, nil)
+	headers, result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", opts /*[]string{"X-Subject-Token"}, */, wrapper, CreateTokenRequestBuilder, nil)
 	if tokens, ok := headers["X-Subject-Token"]; ok {
 		if len(tokens) > 0 {
 			return headers["X-Subject-Token"][0], wrapper.Token, result, err
@@ -196,10 +197,11 @@ type ReadTokenOpts struct {
 // token.
 func (api *IdentityV3API) ReadToken(opts *ReadTokenOpts) (bool, *Result, error) {
 	wrapper := &struct {
-		Token *Token `json:"token,omitempy"`
+		Token        *Token  `json:"token,omitempy"`
+		SubjectToken *string `header:"X-Subject-Token"`
 	}{}
 
-	headers, result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", opts, []string{"X-Subject-Token"}, wrapper, nil, nil)
+	headers, result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", opts, wrapper, nil, nil)
 	if result.Code == 200 {
 		return true, result, err
 	}
