@@ -48,11 +48,6 @@ func (api *IdentityV3API) CreateToken(opts *CreateTokenOpts) (string, *Token, *R
 	}{}
 
 	result, _, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", opts, wrapper, CreateTokenRequestBuilder, nil)
-	// if tokens, ok := headers["X-Subject-Token"]; ok {
-	// 	if len(tokens) > 0 {
-	// 		return headers["X-Subject-Token"][0], wrapper.Token, result, err
-	// 	}
-	// }
 	if wrapper.SubjectToken != nil {
 		return *wrapper.SubjectToken, wrapper.Token, result, err
 	}

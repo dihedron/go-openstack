@@ -104,10 +104,6 @@ func (api *API) Invoke(method string, url string, input interface{}, output inte
 		log.Warnf("API.Invoke: status code indicates some problem: %v", result)
 	}
 
-	// for key, values := range headers {
-	// 	log.Debugf("API.Invoke: header %q => %q", key, values)
-	// }
-
 	return &result, data, nil
 }
 
@@ -179,9 +175,7 @@ func DefaultResponseHeadersHandler(response *http.Response, output interface{}) 
 	for i := 0; i < t.NumField(); i++ {
 		tag := t.Field(i).Tag.Get("header")
 		if len(strings.TrimSpace(tag)) > 0 {
-			//log.Debugf("API.DefaultResponseHeadersHandler: querying header %q", tag)
 			value := v.Field(i)
-			//log.Debugf("API.DefaultResponseHeadersHandler: settable? %t nil? %t ptr? %t (%T, %v)", value.CanSet(), value.IsNil(), value.Kind() == reflect.Ptr, value, value)
 			if value.Kind() == reflect.Ptr {
 				value.Set(reflect.New(value.Type().Elem()))
 				value.Elem().SetString(response.Header.Get(tag))
