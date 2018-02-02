@@ -34,19 +34,20 @@ type API struct {
 // fills in the information to turn it into an http.Request ready to
 // be submitted by the HTTP client. Its task is that of adding headers,
 // query parameters and a request entity according to the information
-// provided in the opts parameter, then sealing the Sling and returning
+// provided in the "input" parameter, then sealing the Sling and returning
 // the http.Request object ready for submittal.
-type RequestBuilder func(sling *sling.Sling, opts interface{}) (*http.Request, error)
+type RequestBuilder func(sling *sling.Sling, input interface{}) (*http.Request, error)
 
 // ResponseHandler is the signature of a function that, given an
 // http.Response, extracts from it the information pertaining to the
 // specific API call: in some cases, this can be a few header values,
 // under other circumstances in can be an entity, or a combination of
 // the two. The keys parameter, which can be null, specifies the headers
-// to extract from the response; the entity paraeter is the struct to be
-// used as a template for decoding the JSON response in the response
-// payload.
-type ResponseHandler func(response *http.Response, entity interface{}) (Result, []byte, error)
+// to extract from the response; the "output" parameter is the struct to
+// be used as a template for decoding the JSON response in the response
+// payload into an entity and to store the values of the headers; the
+// vaues of headers are stored into fields marked with a "header" tag.
+type ResponseHandler func(response *http.Response, output interface{}) (Result, []byte, error)
 
 // Invoke calls an API endpoint at the given path (under the base path
 // provided by the api receiver) with the given HTTP method; the request

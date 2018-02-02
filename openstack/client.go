@@ -145,46 +145,47 @@ func (c *Client) Connect(opts *LoginOpts) error {
 		return fmt.Errorf("no catalog information available from identity service")
 	}
 
-	if c.Profile != nil {
-		log.Debugln("Client.Connect: applying filters to catalog")
-		// look for a match between a service and a filter
+	for _, service := range *c.Authenticator.TokenInfo.Catalog {
+		// log.Debugf("Client.Connect: checking service %q (%q)\n", *service.Type, *service.Name)
 
-		for _, service := range *c.Authenticator.TokenInfo.Catalog {
-			// log.Debugf("Client.Connect: checking service %q (%q)\n", *service.Type, *service.Name)
+		//outer:
+		for _, endpoint := range *service.Endpoints {
+			// log.Debugf("Client.Connect: checking endpoint, interface %q, region %q, URL %q\n", *endpoint.Interface, *endpoint.Region, *endpoint.URL)
+			// inner:
+			if c.Profile != nil {
+				// look for a match between a service and a filter before proceeding
+				log.Debugln("Client.Connect: applying filters to catalog")
 
-			for _, endpoint := range *service.Endpoints {
-				// log.Debugf("Client.Connect: checking endpoint, interface %q, region %q, URL %q\n", *endpoint.Interface, *endpoint.Region, *endpoint.URL)
-				// inner:
+			inner:
 				for _, filter := range c.Profile.Filters {
 					// log.Debugf("Client.Connect: does filter type %q, interface %q, region %q, URL %q match?\n", *filter.Type, *endpoint.Interface, *endpoint.Region, *endpoint.URL)
 					if *service.Type != *filter.Type {
-						continue //inner
+						continue inner
 					}
 					if *endpoint.Interface != *filter.Interface {
-						continue //inner
+						continue inner
 					}
 					if *endpoint.Region != *filter.Region {
-						continue //inner
+						continue inner
 					}
 					if *endpoint.URL != *filter.EndpointURL {
-						continue //inner
+						continue inner
 					}
 
 					log.Debugf("Client.Connect: service %q (type: %q, interface %q, region %q, URL %q) matches filter, adding to catalog\n", *service.Name, *service.Type, *endpoint.Interface, *endpoint.Region, *endpoint.URL)
-
-					switch *service.Type {
-					case "identity":
-						c.Services[*service.Type] = IdentityV3API{
-							API{
-								client:    c,
-								requestor: sling.New().Set("User-Agent", c.UserAgent).Client(&c.HTTPClient).Base(NormaliseURL(*endpoint.URL)),
-							},
-						}
-					default:
-						log.Debugf("Client.Connect: unsupported service %q (type: %q)\n", *service.Name, *service.Type)
-					}
-
 				}
+			}
+
+			switch *service.Type {
+			case "identity":
+				c.Services[*service.Type] = IdentityV3API{
+					API{
+						client:    c,
+						requestor: sling.New().Set("User-Agent", c.UserAgent).Client(&c.HTTPClient).Base(NormaliseURL(*endpoint.URL)),
+					},
+				}
+			default:
+				log.Debugf("Client.Connect: unsupported service %q (type: %q)\n", *service.Name, *service.Type)
 			}
 		}
 	}
