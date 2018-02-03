@@ -7,6 +7,7 @@ package openstack
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"reflect"
@@ -49,8 +50,10 @@ type RequestBuilder func(sling *sling.Sling, input interface{}) (*http.Request, 
 // vaues of headers are stored into fields marked with a "header" tag.
 type ResponseHandler func(response *http.Response, output interface{}) (Result, []byte, error)
 
-// Invoke calls an API endpoint at the given path (under the base path
-// provided by the api receiver) with the given HTTP method; the request
+// Invoke calls an API endpoint at the given path; if the receiver already has a
+// base path configured, the given path can be relative to it; it can be a full
+// URI (under the base path provided
+// by the api receiver) with the given HTTP method; the request
 // is prepared by the given builder using the information contained in
 // the opts parameter; the response is handled by the user-provided handler
 // and translated into headers and an entity. The input opts parameter would
@@ -61,14 +64,20 @@ type ResponseHandler func(response *http.Response, output interface{}) (Result, 
 // the opts struct as a "json"-annotated struct closely matching the expected
 // request entity payload. If no builder or handler is provided, the method
 // uses their default implementations.
-func (api *API) Invoke(method string, url string, input interface{}, output interface{}, builder RequestBuilder, handler ResponseHandler) (*Result, []byte, error) {
+func (api *API) Invoke(method string, url string, authenticated bool, input interface{}, output interface{}, builder RequestBuilder, handler ResponseHandler) (*Result, []byte, error) {
 
 	log.Debugf("API.Invoke: calling method %q on URL %q", method, url)
 
 	sling := api.requestor.New().Method(method).Path(url)
 
-	if api.client.Authenticator.TokenValue != nil {
-		sling.Add("X-Auth-Token", *api.client.Authenticator.TokenValue)
+	if authenticated {
+		token := api.client.Authenticator.GetTokenValue()
+		if token == nil {
+			log.Errorf("API.Invoke: no valid token available for authenticated call")
+			return nil, nil, fmt.Errorf("no valid token for authenticated call")
+		}
+		log.Debugf("API.Invoke: adding token %s", ZipString(*token, 16))
+		sling.Add("X-Auth-Token", *token)
 	}
 
 	log.Debugf("API.Invoke: Sling is now %v", sling)

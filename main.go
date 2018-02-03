@@ -6,6 +6,7 @@ package main
 
 import (
 	"os"
+	"time"
 
 	"github.com/dihedron/go-openstack/log"
 	"github.com/dihedron/go-openstack/openstack"
@@ -15,6 +16,13 @@ import (
 func main() {
 
 	log.Debugf("---------------------------------------------------------------------")
+
+	// for i := -1; i < 10; i++ {
+	// 	fmt.Printf("%d: %s\n", i, openstack.ZipString("abcdefghijklmnopqrstuvwxyz", i))
+	// }
+	//fmt.Println("%s", openstack.ZipString("abcdefghijklmnopqrstuvwxyz", 5))ùreturn
+
+	// os.Exit(0)
 
 	endpoint := os.Getenv("OS_AUTH_URL")
 	if endpoint == "" {
@@ -41,6 +49,8 @@ func main() {
 	client.LoadProfileFrom("./my-profile.json")
 	client.Connect(opts1)
 	defer client.Close()
+
+	time.Sleep(10 * time.Second)
 
 	log.Debugf("---------------------------------------------------------------------")
 

@@ -1,6 +1,7 @@
 package openstack
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -13,3 +14,28 @@ func NormaliseURL(url string) string {
 	}
 	return url + "/"
 }
+
+func ZipString(s string, length int) string {
+	switch {
+	case length <= 2:
+		return ""
+	case length == 3:
+		return "..."
+	case length%2 == 1:
+		half := (length - 3) / 2
+		return fmt.Sprintf("%s...%s", s[0:half], s[len(s)-half:])
+	case length%2 == 0:
+		head := ((length - 3) + 1) / 2
+		tail := ((length - 3) - 1) / 2
+		return fmt.Sprintf("%s...%s", s[0:head], s[len(s)-tail:])
+	}
+	return ""
+}
+
+// func ISO8601ToTime(date string) (time.Time, error) {
+// 	return time.Parse(ISO8601, date)
+// }
+
+// func TimeToISO8601(time time.Time) (string, error) {
+// 	return time.Format(ISO8601)
+// }

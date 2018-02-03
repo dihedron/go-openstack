@@ -112,8 +112,8 @@ func NewClient(authURL string, httpClient *http.Client, userAgent *string) *Clie
 				requestor: sling.New().Set("User-Agent", *userAgent).Client(httpClient).Base(NormaliseURL(authURL)),
 			},
 		},
-		TokenValue: nil,
-		TokenInfo:  nil,
+		tokenValue: nil,
+		tokenInfo:  nil,
 	}
 
 	// NOTE: other APIs will be dynamically added once we have
@@ -140,12 +140,12 @@ func (c *Client) Connect(opts *LoginOpts) error {
 		return err
 	}
 
-	if c.Authenticator.TokenInfo.Catalog == nil {
+	if c.Authenticator.GetCatalog() == nil {
 		log.Errorf("Client.Connect: no catalog info available")
 		return fmt.Errorf("no catalog information available from identity service")
 	}
 
-	for _, service := range *c.Authenticator.TokenInfo.Catalog {
+	for _, service := range *c.Authenticator.GetCatalog() {
 		// log.Debugf("Client.Connect: checking service %q (%q)\n", *service.Type, *service.Name)
 
 		//outer:
@@ -205,7 +205,7 @@ func (c *Client) Close() error {
 // each of which has an URL and specifies whether it is a public, administra-
 // tive or internal interface and the region to which it belongs.
 func (c *Client) GetServices() *[]Service {
-	return c.Authenticator.TokenInfo.Catalog
+	return c.Authenticator.GetCatalog()
 }
 
 // IdentityV3 returns an IdentityV3API service reference.

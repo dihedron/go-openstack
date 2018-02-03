@@ -220,3 +220,7 @@ type User struct {
 	Password          *string `json:"password,omitempty"`
 	PasswordExpiresAt *string `json:"password_expires_at,omitempty"`
 }
+
+// ISO8601 is the format of OpenStack timestamps.
+//const ISO8601 string = "2006-01-02T15:04:05-0700"
+const ISO8601 string = "2006-01-02T15:04:05.000000Z"

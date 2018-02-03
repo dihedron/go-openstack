@@ -66,11 +66,11 @@ func (c *Client) InitProfile() error {
 			AuthURL: c.Authenticator.AuthURL,
 		}
 	}
-	if c.Authenticator.AuthURL == nil || c.Authenticator.TokenInfo == nil || c.Authenticator.TokenInfo.Catalog == nil {
-		log.Errorln("Client.InitProfile: to initi a profile, the client must be connected to the identity service")
+	if c.Authenticator.AuthURL == nil || c.Authenticator.GetTokenInfo() == nil || c.Authenticator.GetCatalog() == nil {
+		log.Errorln("Client.InitProfile: to init a profile, the client must be connected to the identity service")
 		return fmt.Errorf("no connection to identity service yet")
 	}
-	for _, service := range *c.Authenticator.TokenInfo.Catalog {
+	for _, service := range *c.Authenticator.GetCatalog() {
 		if service.Endpoints != nil {
 			if c.Profile.Filters == nil {
 				c.Profile.Filters = []Filter{}
