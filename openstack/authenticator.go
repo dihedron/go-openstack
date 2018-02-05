@@ -23,7 +23,7 @@ import (
 // references to all other available services as per the catalog returned by the
 // IdentityAPI.
 type Authenticator struct {
-	// AuthURL is the URL at which the authentication service can be reaced, i.e.
+	// AuthURL is the URL at which the authentication service can be reached, i.e.
 	// the URL of the public Keystone endpoint used for the first authentication.
 	AuthURL *string
 
@@ -33,34 +33,36 @@ type Authenticator struct {
 	Identity *IdentityV3API
 
 	// tokenValue is the token released at login by the Identity service; it
-	// must be set in all authenticated API requests to gain access to protected
-	// resources.
+	// .
 	tokenValue *string
 
-	// tokenInfo contains all the information about the current token, as reported
-	// by the Identity service hen the token is issued; it can be used to check for
-	// expiration.
-	tokenInfo *Token
+	// token contains all the information about the current token, as reported
+	// by the Identity service when the token is issued; it contains both the
+	// token value, which must be set in all authenticated API requests to gain
+	// access to protected resources, and the metadata which can be used e.g. to
+	// check for expiration.
+	token *Token
 
 	// tokenMutex guards TokenValue and TokenInfo against concurrent read and write
 	// accesses, e.g. when a token is being reissued by the background goroutine.
-	tokenMutex sync.RWMutex
+	mutex sync.RWMutex
 
 	// tokenTimer is a timer that is set to file a few seconds before the
 	// current tokenValue expires (as per the information in tokenInfo); a
 	// goroutine is set to listen on it and to have the token reissued by the
 	// identity server automatically via the Login() method and the current
 	// token value; the scope is unchanged.
-	tokenTimer *time.Timer
+	timer *time.Timer
 }
 
-// LoginOpts is a subset of CreateTokenOpts; it assumes some defaults and is
-// used when invoking the IdentityAPIV's CreateToken method; it can be filled
-// with values taken from the process enviroment.
+// LoginOpts is a subset of Identity V3's CreateTokenOpts; it assumes some
+// defaults and is used when invoking the IdentityV3API's CreateToken method; it
+// can be filled with values taken from the process enviroment.
 type LoginOpts struct {
 	// UserName, UserDomainName and UserPassword are used for password-based
-	// authentication; this is not the preferred method and is not employed if
-	// TokenID is not nil.
+	// authentication; this is the preferred method for issuing the first,
+	// unscoped token; further calls can employ this first unscoped token's ID
+	// to issue new scoped tokens.
 	UserName       *string
 	UserDomainName *string
 	UserPassword   *string
@@ -79,14 +81,14 @@ type LoginOpts struct {
 }
 
 // Login performs a logon using the given options and sets the returned token
-// as Token Value, in order for it to be available to be be automatically set
-// as a request header ("X-Auth-Token") in the following procteted API calls;
+// as Token's Value field, in order for it to be available to be be automatically
+// set as a request header ("X-Auth-Token") in the following protected API calls;
 // moreover this method parses the catalog and initialises all the other available
 // service API references using the information about services, their versions and
-// available endpoints.
+// available endpoints fo the current token.
 func (auth *Authenticator) Login(opts *LoginOpts) error {
 	var err error
-	opts2 := &CreateTokenOpts{
+	cto := &CreateTokenOpts{
 		NoCatalog:        false,
 		ScopeProjectName: opts.ScopeProjectName,
 		ScopeDomainName:  opts.ScopeDomainName,
@@ -94,74 +96,76 @@ func (auth *Authenticator) Login(opts *LoginOpts) error {
 	}
 
 	if opts.TokenID != nil && len(strings.TrimSpace(*opts.TokenID)) > 0 {
-		opts2.Method = "token"
-		opts2.TokenID = opts.TokenID
+		cto.Method = "token"
+		cto.TokenID = opts.TokenID
 		log.Debugf("Authenticator.Login: performing token-based authentication (%s)", ZipString(*opts.TokenID, 10))
 	} else {
-		opts2.Method = "password"
-		opts2.UserName = opts.UserName
-		opts2.UserDomainName = opts.UserDomainName
-		opts2.UserPassword = opts.UserPassword
-		log.Debugf("Authenticator.Login: performing password-based authentication (%s\\%s:%s)", opts.UserDomainName, opts.UserName, opts.UserPassword)
+		cto.Method = "password"
+		cto.UserName = opts.UserName
+		cto.UserDomainName = opts.UserDomainName
+		cto.UserPassword = opts.UserPassword
+		log.Debugf("Authenticator.Login: performing password-based authentication (%s\\%s:%s)", *opts.UserDomainName, *opts.UserName, *opts.UserPassword)
 	}
 
-	token, info, _, err := auth.Identity.CreateToken(opts2)
+	value, info, _, err := auth.Identity.CreateToken(cto)
 	if err != nil {
 		log.Errorf("Authenticator.Login: login failed: %v", err)
 		return err
 	}
 
-	log.Debugf("Authenticator.Login: token value is %q, token info is:\n%s\n", token, log.ToJSON(info))
+	log.Debugf("Authenticator.Login: token value is %q, token info is:\n%s\n", value, log.ToJSON(info))
 
 	// now store that info inside the current authenticator and start the
 	// background goroutine that will automatically reissue the token when it
 	// is about to expire.
-	auth.tokenMutex.Lock()
-	defer auth.tokenMutex.Unlock()
-	auth.tokenValue = String(token)
-	auth.tokenInfo = info
-	if auth.tokenInfo.ExpiresAt != nil {
-		log.Debugf("Authenticator.Login: setting timer for token refresh")
-		if expiryDate, err := time.Parse(ISO8601, *auth.tokenInfo.ExpiresAt); err == nil {
-			when := expiryDate.Sub(time.Now().Add(30 * time.Second))
-			log.Debugf("Authenticator.Login: timer will fire in %v", when)
-			auth.tokenTimer = time.NewTimer(when)
-			//auth.tokenTimer = time.NewTimer(5 * time.Second)
-			opts3 := &LoginOpts{
-				TokenID:          auth.tokenValue,
-				ScopeProjectName: opts.ScopeDomainName,
-				ScopeDomainName:  opts.ScopeDomainName,
-				UnscopedLogin:    opts.UnscopedLogin,
-			}
-			go func() {
-				<-auth.tokenTimer.C
-				auth.Login(opts3)
-			}()
-		} else {
-			log.Errorf("Authenticator.Login: error parsing date: %v", err)
-		}
-	}
+	auth.mutex.Lock()
+	defer auth.mutex.Unlock()
+	auth.token = info
+	auth.token.Value = String(value)
+
+	// TODO: re-enable
+	// if auth.token.ExpiresAt != nil {
+	// 	log.Debugf("Authenticator.Login: setting timer for token refresh")
+	// 	if expiryDate, err := time.Parse(ISO8601, *auth.token.ExpiresAt); err == nil {
+	// 		when := expiryDate.Sub(time.Now().Add(30 * time.Second))
+	// 		log.Debugf("Authenticator.Login: timer will fire in %v", when)
+	// 		//auth.tokenTimer = time.NewTimer(when)
+	//if timer != nil do this, otherwise reset it afteer draining
+	// 		auth.timer = time.NewTimer(5 * time.Second)
+	// 		lo := &LoginOpts{
+	// 			TokenID:          auth.tokenValue,
+	// 			ScopeProjectName: opts.ScopeDomainName,
+	// 			ScopeDomainName:  opts.ScopeDomainName,
+	// 			UnscopedLogin:    opts.UnscopedLogin,
+	// 		}
+	// 		go func(opts LoginOpts) {
+	// 			<-auth.timer.C
+	// 			auth.Login(&opts)
+	// 		}(*lo)
+	// 	} else {
+	// 		log.Errorf("Authenticator.Login: error parsing date: %v", err)
+	// 	}
+	// }
 
 	return nil
 }
 
-func (auth *Authenticator) GetTokenValue() *string {
-	auth.tokenMutex.RLock()
-	defer auth.tokenMutex.RUnlock()
-	return auth.tokenValue
+// GetToken returns the current Token information; this includes both data (the
+// "Value" field) and metadata (such as its expiration date and the set of
+// services and endpoints associated with the token).
+func (auth *Authenticator) GetToken() *Token {
+	auth.mutex.RLock()
+	defer auth.mutex.RUnlock()
+	return auth.token
 }
 
-func (auth *Authenticator) GetTokenInfo() *Token {
-	auth.tokenMutex.RLock()
-	defer auth.tokenMutex.RUnlock()
-	return auth.tokenInfo
-}
-
+// GetCatalog returns the set of services and endpoints associated with the
+// current token.
 func (auth *Authenticator) GetCatalog() *[]Service {
-	auth.tokenMutex.RLock()
-	defer auth.tokenMutex.RUnlock()
-	if auth.tokenInfo != nil {
-		return auth.tokenInfo.Catalog
+	auth.mutex.RLock()
+	defer auth.mutex.RUnlock()
+	if auth.token != nil {
+		return auth.token.Catalog
 	}
 	return nil
 }
@@ -169,17 +173,26 @@ func (auth *Authenticator) GetCatalog() *[]Service {
 // Logout invalidates the current authentication token so that all succeding
 // API calls will fail as unauthorised.
 func (auth *Authenticator) Logout() error {
-	value := auth.GetTokenValue()
+	log.Debugf("Authenticator.Logout: logging out")
+	token := auth.GetToken()
+	if token == nil {
+		return nil
+	}
+	value := token.Value
 	if value != nil {
 		log.Debugf("Authenticator.Logout: invalidating authentication token %s", value)
-		auth.tokenMutex.Lock()
-		defer auth.tokenMutex.Unlock()
-		if auth.tokenTimer != nil {
-			auth.tokenTimer.Stop()
+		auth.mutex.Lock()
+		defer auth.mutex.Unlock()
+		if auth.timer != nil {
+			log.Debugf("Authenticator.Logout: stopping timer")
+			if !auth.timer.Stop() {
+				// drain the timer, as per the docs
+				<-auth.timer.C
+			}
 		}
 		// TODO: api.DeleteToken()
-		auth.tokenValue = nil
-		auth.tokenInfo = nil
+		auth.token.Value = nil
+		auth.token = nil
 	}
 	return nil
 }

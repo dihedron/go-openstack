@@ -15,6 +15,8 @@ func NormaliseURL(url string) string {
 	return url + "/"
 }
 
+// ZipString returns a truncated version of the input string, with the given
+// length, where the middle characters are replaced with three dots ("...").
 func ZipString(s string, length int) string {
 	switch {
 	case length <= 2:
@@ -39,3 +41,8 @@ func ZipString(s string, length int) string {
 // func TimeToISO8601(time time.Time) (string, error) {
 // 	return time.Format(ISO8601)
 // }
+
+// for i := -1; i < 10; i++ {
+// 	fmt.Printf("%d: %s\n", i, openstack.ZipString("abcdefghijklmnopqrstuvwxyz", i))
+// }
+//fmt.Println("%s", openstack.ZipString("abcdefghijklmnopqrstuvwxyz", 5))ùreturn

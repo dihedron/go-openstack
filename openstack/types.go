@@ -128,19 +128,27 @@ func StringSlice(value []string) *[]string {
  * AUTHENTICATION AND TOKEN MANAGEMENT
  */
 
-// Authentication contains the identity entity used to authenticate users
-// and issue tokens against a Keystone instance; it can be scoped (when
-// either Project or Domain is specified), implicitly unscoped ()
+// Authentication contains the identity entity used to authenticate users and
+// issue tokens against a Keystone instance; it can be scoped (when either
+// Project or Domain is specified), implicitly unscoped (when neither is specified)
+// or expicitly unscoped (when the "unscoped" flag is set); see Scope for details.
 type Authentication struct {
 	Identity *Identity   `json:"identity,omitempty"`
 	Scope    interface{} `json:"scope,omitempty"`
 }
 
+// Domain is a container of users, roles, projects and resources; it is itself
+// associated with a limited number of services when a token is scoped to it.
 type Domain struct {
 	ID   *string `json:"id,omitempty"`
 	Name *string `json:"name,omitempty"`
 }
 
+// Endpoint is the address of a specific interface to a service; the Interface
+// field specifies the kind of usage to which the endpoint is devoted, i.e.
+// "public" (everyone can access it, including subscribers), "admin" (only cloud
+// administators have access to it) and "internal" (technical endpoint, devoted
+// to inter-service communications).
 type Endpoint struct {
 	ID        *string `json:"id,omitempty"`
 	Interface *string `json:"interface,omitempty"`
@@ -149,19 +157,25 @@ type Endpoint struct {
 	URL       *string `json:"url,omitempty"`
 }
 
+// Identity represents an identity, as granted by the Identity service to a
+// user providing the given password or token with the given authentication
+// method.
 type Identity struct {
 	Methods  *[]string `json:"methods,omitempty"`
 	Password *Password `json:"password,omitempty"`
 	Token    *Token    `json:"token,omitempty"`
 }
 
+// Password identifies a user's credentials; see User for details.
 type Password struct {
 	User *User `json:"user,omitempty"`
 }
 
 // Project represents a container that groups or isolates resources or identity
 // objects; depending on the service operator, a project might map to a customer,
-// account, organization, or tenant.
+// account, organization, or tenant. A Project can itself be a container of other
+// Project and act as a Domain; most services are associated with tokens issued
+// with Project scope.
 type Project struct {
 	ID     *string `json:"id,omitempty"`
 	Name   *string `json:"name,omitempty"`
@@ -173,6 +187,8 @@ type Role struct {
 	Name *string `json:"name,omitempty"`
 }
 
+// Scope represents the scope of a Token; a Token can be issued either at Project
+// or at Domain scope, but not both (mutually exclusive).
 type Scope struct {
 	Project *Project `json:"project,omitempty"`
 	Domain  *Domain  `json:"domain,omitempty"` // either one or the other: if both, BadRequest!
@@ -194,6 +210,10 @@ type Service struct {
 // token-based authentication in this release, it intends to support additional
 // protocols in the future. OpenStack Identity is an integration service that does
 // not aspire to be a full-fledged identity store and management solution.
+// The "value" field is not part od the JSON entity and is used to store the
+// actual token value as returned by the API in the X-Subject-Auth header, so
+// that data and metadata are alla vailable in one place throughout the API; as
+// an "unofficial" addition, it is not tagged for JSON (un-)marshalling.
 type Token struct {
 	ID           *string    `json:"id,omitempty"`
 	IssuedAt     *string    `json:"issued_at,omitempty"`
@@ -206,6 +226,7 @@ type Token struct {
 	IsDomain     *bool      `json:"is_domain,omitempty"`
 	IsAdminToken *bool      `json:"is_admin_token,omitempty"`
 	Catalog      *[]Service `json:"catalog,omitempty"`
+	Value        *string    `json:"-"`
 }
 
 // User is a digital representation of a person, system, or service that uses
@@ -222,5 +243,4 @@ type User struct {
 }
 
 // ISO8601 is the format of OpenStack timestamps.
-//const ISO8601 string = "2006-01-02T15:04:05-0700"
 const ISO8601 string = "2006-01-02T15:04:05.000000Z"

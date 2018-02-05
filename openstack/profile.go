@@ -66,7 +66,7 @@ func (c *Client) InitProfile() error {
 			AuthURL: c.Authenticator.AuthURL,
 		}
 	}
-	if c.Authenticator.AuthURL == nil || c.Authenticator.GetTokenInfo() == nil || c.Authenticator.GetCatalog() == nil {
+	if c.Authenticator.AuthURL == nil || c.Authenticator.GetToken() == nil || c.Authenticator.GetCatalog() == nil {
 		log.Errorln("Client.InitProfile: to init a profile, the client must be connected to the identity service")
 		return fmt.Errorf("no connection to identity service yet")
 	}

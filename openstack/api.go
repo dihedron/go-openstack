@@ -51,19 +51,17 @@ type RequestBuilder func(sling *sling.Sling, input interface{}) (*http.Request, 
 type ResponseHandler func(response *http.Response, output interface{}) (Result, []byte, error)
 
 // Invoke calls an API endpoint at the given path; if the receiver already has a
-// base path configured, the given path can be relative to it; it can be a full
-// URI (under the base path provided
-// by the api receiver) with the given HTTP method; the request
-// is prepared by the given builder using the information contained in
-// the opts parameter; the response is handled by the user-provided handler
-// and translated into headers and an entity. The input opts parameter would
-// usually point to a struct (although no check is performed since its usage
-// is restructed to the user-provided builder, which can arrange a protocol
-// of its interest with the API consumer) whose fileds are annotated with
-// "url" and "header" values; the request entity can itself be embedded inside
-// the opts struct as a "json"-annotated struct closely matching the expected
-// request entity payload. If no builder or handler is provided, the method
-// uses their default implementations.
+// base path configured, the given "url" can be relative to it; it can also be a
+// full URI; the HTTP "method" identifies the kind of API request. The request
+// is prepared by the provided "builder" using the information contained in the
+// "input" parameter, which can have tagged fields for query parameters (`url`),
+// for HTTP headers (`header`) and for the request entity in the body (`json`);
+// the response is handled by the user-provided "handler" and translated into
+// headers and an entity as per the tags in the "output" interface. Both the
+// "input" and the "output" parameters would usually be structs (although no
+// check is performed since it can also be used by the user-provided builder,
+// which could expect anything. If no "builder" or no "handler" is provided, the
+// method uses their default implementations which relies on tags as noted above.
 func (api *API) Invoke(method string, url string, authenticated bool, input interface{}, output interface{}, builder RequestBuilder, handler ResponseHandler) (*Result, []byte, error) {
 
 	log.Debugf("API.Invoke: calling method %q on URL %q", method, url)
@@ -71,13 +69,13 @@ func (api *API) Invoke(method string, url string, authenticated bool, input inte
 	sling := api.requestor.New().Method(method).Path(url)
 
 	if authenticated {
-		token := api.client.Authenticator.GetTokenValue()
-		if token == nil {
+		token := api.client.Authenticator.GetToken()
+		if token == nil || token.Value == nil {
 			log.Errorf("API.Invoke: no valid token available for authenticated call")
 			return nil, nil, fmt.Errorf("no valid token for authenticated call")
 		}
-		log.Debugf("API.Invoke: adding token %s", ZipString(*token, 16))
-		sling.Add("X-Auth-Token", *token)
+		log.Debugf("API.Invoke: adding token %s", ZipString(*token.Value, 16))
+		sling.Add("X-Auth-Token", *token.Value)
 	}
 
 	log.Debugf("API.Invoke: Sling is now %v", sling)

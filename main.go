@@ -6,7 +6,6 @@ package main
 
 import (
 	"os"
-	"time"
 
 	"github.com/dihedron/go-openstack/log"
 	"github.com/dihedron/go-openstack/openstack"
@@ -16,13 +15,6 @@ import (
 func main() {
 
 	log.Debugf("---------------------------------------------------------------------")
-
-	// for i := -1; i < 10; i++ {
-	// 	fmt.Printf("%d: %s\n", i, openstack.ZipString("abcdefghijklmnopqrstuvwxyz", i))
-	// }
-	//fmt.Println("%s", openstack.ZipString("abcdefghijklmnopqrstuvwxyz", 5))ùreturn
-
-	// os.Exit(0)
 
 	endpoint := os.Getenv("OS_AUTH_URL")
 	if endpoint == "" {
@@ -38,9 +30,10 @@ func main() {
 	log.SetTimeFormat("15:04:05.000")
 
 	opts1 := &openstack.LoginOpts{
-		UserName:         openstack.String("admin"),
-		UserDomainName:   openstack.String("Default"),
-		UserPassword:     openstack.String("password"),
+		UserName:       openstack.String("admin"),
+		UserDomainName: openstack.String("Default"),
+		UserPassword:   openstack.String("password"),
+		//UnscopedLogin:  openstack.Bool(true),
 		ScopeProjectName: openstack.String("admin"),
 		ScopeDomainName:  openstack.String("Default"),
 	}
@@ -50,7 +43,9 @@ func main() {
 	client.Connect(opts1)
 	defer client.Close()
 
-	time.Sleep(10 * time.Second)
+	os.Exit(0)
+
+	//time.Sleep(10 * time.Second)
 
 	log.Debugf("---------------------------------------------------------------------")
 

@@ -27,17 +27,17 @@ const (
 // Client is the go-openstack SDK client.
 type Client struct {
 
-	// HTTPClient is the HTTP Client used for connectiong to the API endpoints.
+	// HTTPClient is the HTTP Client used for connecting to the API endpoints.
 	HTTPClient http.Client
 
-	// UserAgent is the User-Agent header value sent to the server.
+	// UserAgent is the User-Agent header value sent to the server by the client.
 	UserAgent string
 
-	// Authenticator is the Identity service API wrapper used for the first
-	// authentication and to retrieve the API /services) catalog; it is
-	// treated in a special way since it is the only service that can be
-	// accessed without an authorisation; moreover it returns the list of
-	// all the other services, and publicy
+	// Authenticator is an Identity V3 API wrapper used for authentication and
+	// to retrieve the list of endpoints associated with the session token; it
+	// is a bit "special" because it is the only service that can be accessed
+	// without an authorisation; moreover it returns the list of all the other
+	// services available through the authentication token.
 	Authenticator *Authenticator
 
 	// This is the profile, that is the set of service, along with version, URL
@@ -50,18 +50,19 @@ type Client struct {
 	Services map[string]interface{}
 }
 
-// NewDefaultClient returns a new instance of a go-openstack SDK client,
-// with sensible defaults for the http.Ckient and the user agent string;
-// the Keystone URL must be provided.
+// NewDefaultClient returns a new instance of a go-openstack SDK client, with
+// sensible defaults for the http.Ckient and the user agent string; the Keystone
+// URL must be provided either explicitly or through the $OS_AUTH_URL variable.
 func NewDefaultClient(authURL string) *Client {
 	return NewClient(authURL, nil, nil)
 }
 
-// NewClient returns a new instance of a go-openstack SDK client; the
-// httpClient parameter allows to use one's own implementation of a
-// http.Client, e.g. to support custom mechanisms for TLS etc.; the second
-// parameter allows to specify one's own User-Agent string. If any of the
-// parameters is omitted (that is, nil), sensible defaults are automatically
+// NewClient returns a new instance of a go-openstack SDK client; the httpClient
+// parameter allows to use one's own implementation of a http.Client, e.g. to
+// support custom mechanisms for TLS etc.; the second parameter allows to specify
+// one's own User-Agent string; the Keystone URL must be provided either
+// explicitly or through the $OS_AUTH_URL variable. If any of the parameters is
+// omitted (that is, it is left is nil), sensible defaults are automatically
 // provided by the SDK.
 func NewClient(authURL string, httpClient *http.Client, userAgent *string) *Client {
 
@@ -102,8 +103,8 @@ func NewClient(authURL string, httpClient *http.Client, userAgent *string) *Clie
 		Services:   map[string]interface{}{},
 	}
 
-	// now we've got a reference to client and we can finally
-	// initialise the authenticator with a backref to it
+	// now we've got a reference to client and we can finally initialise the
+	// authenticator with a backref to it
 	client.Authenticator = &Authenticator{
 		AuthURL: String(authURL),
 		Identity: &IdentityV3API{
@@ -112,12 +113,8 @@ func NewClient(authURL string, httpClient *http.Client, userAgent *string) *Clie
 				requestor: sling.New().Set("User-Agent", *userAgent).Client(httpClient).Base(NormaliseURL(authURL)),
 			},
 		},
-		tokenValue: nil,
-		tokenInfo:  nil,
+		token: nil,
 	}
-
-	// NOTE: other APIs will be dynamically added once we have
-	// access to the catalog via an authenticated Keystore request
 
 	return client
 }
@@ -141,8 +138,9 @@ func (c *Client) Connect(opts *LoginOpts) error {
 	}
 
 	if c.Authenticator.GetCatalog() == nil {
-		log.Errorf("Client.Connect: no catalog info available")
-		return fmt.Errorf("no catalog information available from identity service")
+		log.Warnf("Client.Connect: no catalog info available (maybe it's an unscoped login?)")
+		//return fmt.Errorf("no catalog information available from identity service")
+		return nil
 	}
 
 	for _, service := range *c.Authenticator.GetCatalog() {
