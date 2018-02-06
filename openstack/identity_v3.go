@@ -43,11 +43,13 @@ type CreateTokenOpts struct {
 func (api *IdentityV3API) CreateToken(opts *CreateTokenOpts) (string, *Token, *Result, error) {
 
 	wrapper := &struct {
-		Token        *Token  `json:"token,omitempy"`
+		Token        *Token  `entity:"-" json:"token,omitempy"`
 		SubjectToken *string `header:"X-Subject-Token"`
 	}{}
 
-	result, _, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", false, opts, wrapper, CreateTokenRequestBuilder, nil)
+	success := []int{201}
+
+	result, _, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", false, CreateTokenRequestBuilder, opts, nil, wrapper, success)
 	if wrapper.SubjectToken != nil {
 		return *wrapper.SubjectToken, wrapper.Token, result, err
 	}
@@ -182,8 +184,8 @@ func CreateTokenRequestBuilder(sling *sling.Sling, opts interface{}) (request *h
  * VALIDATE AND GET TOKEN INFO
  */
 
-// ReadTokenOpts contains the set of parameters and options used to
-// perform the valudation of a token on the Identity server.
+// ReadTokenOpts contains the set of parameters and options used to perform the
+// valudation of a token on the Identity server.
 type ReadTokenOpts struct {
 	NoCatalog    bool   `url:"nocatalog,omitempty"`
 	AllowExpired bool   `url:"allow_expired,omitempty"`
@@ -199,7 +201,8 @@ func (api *IdentityV3API) ReadToken(opts *ReadTokenOpts) (bool, *Result, error) 
 		SubjectToken *string `header:"X-Subject-Token"`
 	}{}
 
-	result, _, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", true, opts, wrapper, nil, nil)
+	success := []int{}
+	result, _, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", true, nil, opts, nil, wrapper, success)
 	if result.Code == 200 {
 		return true, result, err
 	}

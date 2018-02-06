@@ -39,15 +39,14 @@ type API struct {
 // the http.Request object ready for submittal.
 type RequestBuilder func(sling *sling.Sling, input interface{}) (*http.Request, error)
 
-// ResponseHandler is the signature of a function that, given an
-// http.Response, extracts from it the information pertaining to the
-// specific API call: in some cases, this can be a few header values,
-// under other circumstances in can be an entity, or a combination of
-// the two. The keys parameter, which can be null, specifies the headers
-// to extract from the response; the "output" parameter is the struct to
-// be used as a template for decoding the JSON response in the response
-// payload into an entity and to store the values of the headers; the
-// vaues of headers are stored into fields marked with a "header" tag.
+// ResponseHandler is the signature of a function that, given an http.Response,
+// extracts from it the information pertaining to the specific API call: in some
+// cases, this can be a few header values, under other circumstances in can be
+// an entity, or a combination of the two. The keys parameter, which can be null,
+// specifies the headers to extract from the response; the "output" parameter is
+// the struct to be used as a template for decoding the JSON response in the
+// response payload into an entity and to store the values of the headers; the
+// values of headers are stored into fields marked with a "header" tag.
 type ResponseHandler func(response *http.Response, output interface{}) (Result, []byte, error)
 
 // Invoke calls an API endpoint at the given path; if the receiver already has a
@@ -62,7 +61,7 @@ type ResponseHandler func(response *http.Response, output interface{}) (Result, 
 // check is performed since it can also be used by the user-provided builder,
 // which could expect anything. If no "builder" or no "handler" is provided, the
 // method uses their default implementations which relies on tags as noted above.
-func (api *API) Invoke(method string, url string, authenticated bool, input interface{}, output interface{}, builder RequestBuilder, handler ResponseHandler) (*Result, []byte, error) {
+func (api *API) Invoke(method string, url string, authenticated bool, builder RequestBuilder, input interface{}, handler ResponseHandler, output interface{}, success []int) (*Result, []byte, error) {
 
 	log.Debugf("API.Invoke: calling method %q on URL %q", method, url)
 
@@ -115,58 +114,72 @@ func (api *API) Invoke(method string, url string, authenticated bool, input inte
 	return &result, data, nil
 }
 
-// DefaultRequestQueryBuilder is the function used by the default builder to populate
-// request query parameters using reflection on fields tagged with "url" in the input
-// opts struct. This function is up for use by custom implementations of RequestBuilders,
-// in order not to have to reinvent the wheel if one has to change only how headers or
-// the request body is built whilst accepting the default logic for query parameters.
-func DefaultRequestQueryBuilder(sling *sling.Sling, opts interface{}) *sling.Sling {
-	return sling.QueryStruct(opts)
+// DefaultRequestQueryBuilder is the function used by the default builder to
+// populate request query parameters using reflection on fields tagged with "url"
+// in the "input" struct. This function can also be used by custom implementations
+// of RequestBuilders, in order not to have to reinvent the wheel if one has to
+// change only how headers or the request body is built whilst accepting the
+// default logic for query parameters.
+func DefaultRequestQueryBuilder(sling *sling.Sling, input interface{}) *sling.Sling {
+	return sling.QueryStruct(input)
 }
 
-// DefaultRequestHeadersBuilder is the function used by the default builder to populate
-// request headers using reflection on fields tagged with "header" in the input
-// opts struct. This function is up for use by custom implementations of RequestBuilders,
-// in order not to have to reinvent the wheel if one has to change only how query
-// parameters or the request body is built whilst accepting the default logic for headers.
-func DefaultRequestHeadersBuilder(sling *sling.Sling, opts interface{}) *sling.Sling {
-	t := reflect.TypeOf(opts).Elem()
-	v := reflect.ValueOf(opts).Elem()
+// DefaultRequestHeadersBuilder is the function used by the default builder to
+// populate request headers using reflection on fields tagged with "header" in
+// the "input" struct. This function can also be used by custom implementations
+// of RequestBuilders, in order not to have to reinvent the wheel if one has to
+// change only how query parameters or the request body is built whilst accepting
+// the default logic for headers.
+func DefaultRequestHeadersBuilder(sling *sling.Sling, input interface{}) *sling.Sling {
+	t := reflect.TypeOf(input).Elem()
+	v := reflect.ValueOf(input).Elem()
 	for i := 0; i < t.NumField(); i++ {
 		tag := t.Field(i).Tag.Get("header")
 		if len(strings.TrimSpace(tag)) > 0 {
 			value := reflect.ValueOf(v.Field(i).Interface()).String()
-			log.Debugf("API.DefaultRequestBuilder: adding header %q => %v", tag, value)
+			log.Warnf("API.DefaultRequestBuilder: adding header %q => %v", tag, value)
 			sling.Add(tag, value)
 		}
 	}
 	return sling
 }
 
-// DefaultRequestEntityBuilder is the function used by the default builder to create
-// the JSON entity sent in the request body using reflection on fields tagged with
-// "json" in the input opts struct. This function is up for use by custom implementations
-// of RequestBuilders, in order not to have to reinvent the wheel if one has to change
-// only how the entity is built whilst accepting the default logic for query parameters
-// and headers.
-func DefaultRequestEntityBuilder(sling *sling.Sling, opts interface{}) *sling.Sling {
-	return sling.BodyJSON(opts)
+// DefaultRequestEntityBuilder is the function used by the default builder to
+// create the JSON entity sent in the request body using reflection on fields
+// tagged with "entity" in the "input" struct. This function can also be used by
+// custom implementations of RequestBuilders, in order not to have to reinvent
+// the wheel if one has to change only how the entity is built whilst accepting
+// the default logic for query parameters and headers.
+func DefaultRequestEntityBuilder(sling *sling.Sling, input interface{}) *sling.Sling {
+	t := reflect.TypeOf(input).Elem()
+	v := reflect.ValueOf(input).Elem()
+	for i := 0; i < t.NumField(); i++ {
+		tag := t.Field(i).Tag.Get("entity")
+		if len(strings.TrimSpace(tag)) > 0 {
+			//value := reflect.ValueOf(v.Field(i).Interface()).String()
+			value := reflect.ValueOf(v.Field(i).Elem())
+			log.Debugf("API.DefaultRequestEntityBuilder: adding entity %v (%T)", value, value)
+			//return sling.BodyJSON(value)
+		}
+	}
+
+	return sling.BodyJSON(input)
 }
 
 // DefaultRequestBuilder fills the Sling with all the necessary information taken
 // from the provided opts parameter; opts must be a struct having fields properly
 // tagged with "url" (for query parameters), "header" (for HTTP request headers)
-// or "json" (for request entity payload). Mixing the three types of tags is
+// or "entity" (for request entity payload). Mixing the three types of tags is
 // supported only for top-level struct elements (shallow scanning). The function
 // returns an http.Request object ready for submittal to the API endpoint.
-func DefaultRequestBuilder(sling *sling.Sling, opts interface{}) (*http.Request, error) {
+func DefaultRequestBuilder(sling *sling.Sling, input interface{}) (*http.Request, error) {
 
-	if reflect.TypeOf(opts).Elem().Kind() != reflect.Struct {
+	if reflect.TypeOf(input).Elem().Kind() != reflect.Struct {
 		panic("API.DefaultRequestBuilder: only structs can be passed as API options")
 	}
-	sling = DefaultRequestQueryBuilder(sling, opts)
-	sling = DefaultRequestHeadersBuilder(sling, opts)
-	sling = DefaultRequestEntityBuilder(sling, opts)
+	sling = DefaultRequestQueryBuilder(sling, input)
+	sling = DefaultRequestHeadersBuilder(sling, input)
+	sling = DefaultRequestEntityBuilder(sling, input)
 	return sling.Request()
 }
 
