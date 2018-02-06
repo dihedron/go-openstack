@@ -131,7 +131,7 @@ func (api *IdentityV3API) CreateToken(opts *CreateTokenOpts) (*Token, *Result, e
 		}
 	}
 
-	log.Debugf("IdentityV3.CreateTokenRequestBuilder: entity in request body is\n%s\n", log.ToJSON(input))
+	log.Debugf("IdentityV3.CreateToken: entity in request body is\n%s\n", log.ToJSON(input))
 
 	output := &struct {
 		SubjectToken *string `header:"X-Subject-Token" json:"-"`
