@@ -5,19 +5,18 @@ import (
 	"os"
 	"strings"
 
-	"github.com/dghubble/sling"
 	"github.com/dihedron/go-openstack/log"
 )
 
-// IdentityV3API represents the identity API ver. 3, providing support
-// for authentication, authorization, role and resource management.
+// IdentityV3API represents the identity API ver. 3, providing support for
+// authentication, authorization, role and resource management.
 // See https://developer.openstack.org/api-ref/identity/v3/
 type IdentityV3API struct {
 	API
 }
 
-// CreateTokenOpts contains the set of parameters and options used to
-// perform an authentication (create an authentication token).
+// CreateTokenOpts contains the set of parameters and options used to perform an
+// authentication (create an authentication token).
 type CreateTokenOpts struct {
 	NoCatalog        bool `url:"nocatalog,omitempty"`
 	Method           string
@@ -40,25 +39,116 @@ type CreateTokenOpts struct {
 
 // CreateToken uses the provided parameters to authenticate the client to the
 // Keystone server and receive a token.
-func (api *IdentityV3API) CreateToken(opts *CreateTokenOpts) (string, *Token, *Result, error) {
+func (api *IdentityV3API) CreateToken(opts *CreateTokenOpts) (*Token, *Result, error) {
 
-	wrapper := &struct {
-		Token        *Token  `entity:"-" json:"token,omitempy"`
-		SubjectToken *string `header:"X-Subject-Token"`
+	input := &struct {
+		NoCatalog bool            `url:"nocatalog,omitempty" json:"-"`
+		Auth      *Authentication `json:"auth,omitempty"`
+	}{
+		NoCatalog: opts.NoCatalog,
+		Auth: &Authentication{
+			Identity: &Identity{
+				Methods: &[]string{
+					opts.Method,
+				},
+			},
+		},
+	}
+
+	if opts.Method == "password" {
+		if opts.UserID != nil && len(strings.TrimSpace(*opts.UserID)) > 0 {
+			input.Auth.Identity.Password = &Password{
+				User: &User{
+					ID:       opts.UserID,
+					Password: opts.UserPassword,
+				},
+			}
+		} else {
+			input.Auth.Identity.Password = &Password{
+				User: &User{
+					Name:     opts.UserName,
+					Password: opts.UserPassword,
+				},
+			}
+			if opts.UserDomainID != nil && len(strings.TrimSpace(*opts.UserDomainID)) > 0 {
+				input.Auth.Identity.Password.User.Domain = &Domain{
+					ID: opts.UserDomainID,
+				}
+			} else {
+				input.Auth.Identity.Password.User.Domain = &Domain{
+					Name: opts.UserDomainName,
+				}
+			}
+		}
+	} else if opts.Method == "token" {
+		if opts.TokenID != nil && len(strings.TrimSpace(*opts.TokenID)) > 0 {
+			input.Auth.Identity.Token = &Token{
+				ID: opts.TokenID,
+			}
+		}
+	}
+
+	// manage scoped/unscoped token requests
+	if opts.ScopeProjectID != nil && len(strings.TrimSpace(*opts.ScopeProjectID)) > 0 {
+		input.Auth.Scope = &Scope{
+			Project: &Project{
+				ID: opts.ScopeProjectID,
+			},
+		}
+	} else if opts.ScopeProjectName != nil && len(strings.TrimSpace(*opts.ScopeProjectName)) > 0 {
+		scope := &Scope{
+			Project: &Project{
+				Name: opts.ScopeProjectName,
+			},
+		}
+
+		if opts.ScopeDomainID != nil && len(strings.TrimSpace(*opts.ScopeDomainID)) > 0 {
+			scope.Project.Domain = &Domain{
+				ID: opts.ScopeDomainID,
+			}
+		} else {
+			scope.Project.Domain = &Domain{
+				Name: opts.ScopeDomainName,
+			}
+		}
+		input.Auth.Scope = scope
+	} else {
+		if opts.ScopeDomainID != nil && len(strings.TrimSpace(*opts.ScopeDomainID)) > 0 {
+			input.Auth.Scope = &Scope{
+				Domain: &Domain{
+					ID: opts.ScopeDomainID,
+				},
+			}
+		} else if opts.ScopeDomainName != nil && len(strings.TrimSpace(*opts.ScopeDomainName)) > 0 {
+			input.Auth.Scope = &Scope{
+				Domain: &Domain{
+					Name: opts.ScopeDomainName,
+				},
+			}
+		} else if opts.UnscopedToken != nil && *opts.UnscopedToken {
+			// all values are null: the request is unscoped
+			input.Auth.Scope = String("unscoped")
+		}
+	}
+
+	log.Debugf("IdentityV3.CreateTokenRequestBuilder: entity in request body is\n%s\n", log.ToJSON(input))
+
+	output := &struct {
+		SubjectToken *string `header:"X-Subject-Token" json:"-"`
+		Token        *Token  `json:"token,omitempy"`
 	}{}
 
-	success := []int{201}
-
-	result, _, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", false, CreateTokenRequestBuilder, opts, nil, wrapper, success)
-	if wrapper.SubjectToken != nil {
-		return *wrapper.SubjectToken, wrapper.Token, result, err
+	result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", false, input, output)
+	if output.SubjectToken != nil {
+		output.Token.Value = output.SubjectToken
+		return output.Token, result, err
 	}
-	return "", wrapper.Token, result, err
+	return output.Token, result, err
 }
 
 // CreateTokenFromEnv uses the information in the environment to authenticate the
 // client to the Keystore server and receive a token.
-func (api *IdentityV3API) CreateTokenFromEnv() (string, *Token, *Result, error) {
+func (api *IdentityV3API) CreateTokenFromEnv() (*Token, *Result, error) {
 	opts := &CreateTokenOpts{
 		Method:         "password",
 		UserName:       String(os.Getenv("OS_USERNAME")),
@@ -76,110 +166,6 @@ func (api *IdentityV3API) CreateTokenFromEnv() (string, *Token, *Result, error) 
 	return api.CreateToken(opts)
 }
 
-// CreateTokenRequestBuilder is a specialised version of a RequestBuilder
-// specifically designed to prepare the request entity for create toke requests
-// under a set of different circumstances including scoped/unscoped authentication
-// and password- or token-based requests.
-func CreateTokenRequestBuilder(sling *sling.Sling, opts interface{}) (request *http.Request, err error) {
-
-	sling = DefaultRequestQueryBuilder(sling, opts)
-	sling = DefaultRequestHeadersBuilder(sling, opts)
-
-	info := opts.(*CreateTokenOpts)
-
-	entity := &struct {
-		Auth *Authentication `json:"auth,omitempty"`
-	}{
-		Auth: &Authentication{
-			Identity: &Identity{
-				Methods: &[]string{
-					info.Method,
-				},
-			},
-		},
-	}
-
-	if info.Method == "password" {
-		if info.UserID != nil && len(strings.TrimSpace(*info.UserID)) > 0 {
-			entity.Auth.Identity.Password = &Password{
-				User: &User{
-					ID:       info.UserID,
-					Password: info.UserPassword,
-				},
-			}
-		} else {
-			entity.Auth.Identity.Password = &Password{
-				User: &User{
-					Name:     info.UserName,
-					Password: info.UserPassword,
-				},
-			}
-			if info.UserDomainID != nil && len(strings.TrimSpace(*info.UserDomainID)) > 0 {
-				entity.Auth.Identity.Password.User.Domain = &Domain{
-					ID: info.UserDomainID,
-				}
-			} else {
-				entity.Auth.Identity.Password.User.Domain = &Domain{
-					Name: info.UserDomainName,
-				}
-			}
-		}
-	} else if info.Method == "token" {
-		if info.TokenID != nil && len(strings.TrimSpace(*info.TokenID)) > 0 {
-			entity.Auth.Identity.Token = &Token{
-				ID: info.TokenID,
-			}
-		}
-	}
-
-	// manage scoped/unscoped token requests
-	if info.ScopeProjectID != nil && len(strings.TrimSpace(*info.ScopeProjectID)) > 0 {
-		entity.Auth.Scope = &Scope{
-			Project: &Project{
-				ID: info.ScopeProjectID,
-			},
-		}
-	} else if info.ScopeProjectName != nil && len(strings.TrimSpace(*info.ScopeProjectName)) > 0 {
-		scope := &Scope{
-			Project: &Project{
-				Name: info.ScopeProjectName,
-			},
-		}
-
-		if info.ScopeDomainID != nil && len(strings.TrimSpace(*info.ScopeDomainID)) > 0 {
-			scope.Project.Domain = &Domain{
-				ID: info.ScopeDomainID,
-			}
-		} else {
-			scope.Project.Domain = &Domain{
-				Name: info.ScopeDomainName,
-			}
-		}
-		entity.Auth.Scope = scope
-	} else {
-		if info.ScopeDomainID != nil && len(strings.TrimSpace(*info.ScopeDomainID)) > 0 {
-			entity.Auth.Scope = &Scope{
-				Domain: &Domain{
-					ID: info.ScopeDomainID,
-				},
-			}
-		} else if info.ScopeDomainName != nil && len(strings.TrimSpace(*info.ScopeDomainName)) > 0 {
-			entity.Auth.Scope = &Scope{
-				Domain: &Domain{
-					Name: info.ScopeDomainName,
-				},
-			}
-		} else if info.UnscopedToken != nil && *info.UnscopedToken {
-			// all values are null: the request is unscoped
-			entity.Auth.Scope = String("unscoped")
-		}
-	}
-
-	log.Debugf("IdentityV3.CreateTokenRequestBuilder: entity in request body is\n%s\n", log.ToJSON(entity))
-
-	return sling.BodyJSON(entity).Request()
-}
-
 /*
  * VALIDATE AND GET TOKEN INFO
  */
@@ -187,26 +173,25 @@ func CreateTokenRequestBuilder(sling *sling.Sling, opts interface{}) (request *h
 // ReadTokenOpts contains the set of parameters and options used to perform the
 // valudation of a token on the Identity server.
 type ReadTokenOpts struct {
-	NoCatalog    bool   `url:"nocatalog,omitempty"`
-	AllowExpired bool   `url:"allow_expired,omitempty"`
-	SubjectToken string `header:"X-Subject-Token"`
+	NoCatalog    bool   `url:"nocatalog,omitempty" json:"-"`
+	AllowExpired bool   `url:"allow_expired,omitempty" json:"-"`
+	SubjectToken string `header:"X-Subject-Token" json:"-"`
 }
 
 // ReadToken uses the provided parameters to read the given token and retrieve
 // information about it from the Identity server; this API requires a valid admin
 // token.
 func (api *IdentityV3API) ReadToken(opts *ReadTokenOpts) (bool, *Result, error) {
-	wrapper := &struct {
+	output := &struct {
 		Token        *Token  `json:"token,omitempy"`
-		SubjectToken *string `header:"X-Subject-Token"`
+		SubjectToken *string `header:"X-Subject-Token" json:"-"`
 	}{}
 
-	success := []int{}
-	result, _, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", true, nil, opts, nil, wrapper, success)
+	result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", true, opts, output)
 	if result.Code == 200 {
 		return true, result, err
 	}
-	log.Debugf("IdentityV3.ReadToken: header is %q\n", wrapper.SubjectToken)
+	log.Debugf("IdentityV3.ReadToken: header is %q\n", output.SubjectToken)
 
 	return false, result, err
 }

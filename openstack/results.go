@@ -5,7 +5,6 @@
 package openstack
 
 import (
-	"fmt"
 	"net/http"
 )
 
@@ -14,54 +13,52 @@ type Result struct {
 	Code        int
 	Status      string
 	Description string
-}
-
-// Error formats a result as a string and makes it compliant with the error
-// interface, so it can be used wherever an error can.
-func (r Result) Error() string {
-	return fmt.Sprintf("%d (%s)", r.Code, r.Status)
+	Data        []byte
 }
 
 // NewResult maps the status code in an HTTP Response to the corresponding
 // API result.
-func NewResult(res *http.Response) Result {
-	switch res.StatusCode {
+func NewResult(response *http.Response, data []byte) *Result {
+	var r Result
+	switch response.StatusCode {
 	case http.StatusOK: // 200
-		return Success
+		r = Success
 	case http.StatusCreated: // 201
-		return Created
+		r = Created
 	// case http.StatusAccepted: // 202
 	// case http.StatusNonAuthoritativeInfo: // 203
 	case http.StatusNoContent: // 204
-		return NoContent
+		r = NoContent
 	// case http.ResetContent: // 205
 	// case http.StatusPartialContent: // 206
 	// case http.StatusMulticase: // 207
 	// case http.StatusAlreadyReported : // 208
 	// case http.StatusIMUsed: // 226
 	case 400:
-		return BadRequest
+		r = BadRequest
 	case 401:
-		return Unauthorized
+		r = Unauthorized
 	case 403:
-		return Forbidden
+		r = Forbidden
 	case 404:
-		return NotFound
+		r = NotFound
 	case 405:
-		return MethodNotAllowed
+		r = MethodNotAllowed
 	case 409:
-		return Conflict
+		r = Conflict
 	case 413:
-		return RequestEntityTooLarge
+		r = RequestEntityTooLarge
 	case 415:
-		return UnsupportedMediaType
+		r = UnsupportedMediaType
 	case 503:
-		return ServiceUnavailable
+		r = ServiceUnavailable
+	default:
+		r = Result{
+			Description: "Unknown error.",
+		}
 	}
-
-	return Result{
-		Description: "Unknown error.",
-	}
+	r.Data = data
+	return &r
 }
 
 func (r Result) IsInformational() bool {

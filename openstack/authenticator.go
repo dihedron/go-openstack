@@ -32,10 +32,6 @@ type Authenticator struct {
 	// API versions.
 	Identity *IdentityV3API
 
-	// tokenValue is the token released at login by the Identity service; it
-	// .
-	tokenValue *string
-
 	// token contains all the information about the current token, as reported
 	// by the Identity service when the token is issued; it contains both the
 	// token value, which must be set in all authenticated API requests to gain
@@ -107,21 +103,20 @@ func (auth *Authenticator) Login(opts *LoginOpts) error {
 		log.Debugf("Authenticator.Login: performing password-based authentication (%s\\%s:%s)", *opts.UserDomainName, *opts.UserName, *opts.UserPassword)
 	}
 
-	value, info, _, err := auth.Identity.CreateToken(cto)
+	token, _, err := auth.Identity.CreateToken(cto)
 	if err != nil {
 		log.Errorf("Authenticator.Login: login failed: %v", err)
 		return err
 	}
 
-	log.Debugf("Authenticator.Login: token value is %q, token info is:\n%s\n", value, log.ToJSON(info))
+	log.Debugf("Authenticator.Login: token value is %v, token info is:\n%s\n", token.Value, log.ToJSON(token))
 
 	// now store that info inside the current authenticator and start the
 	// background goroutine that will automatically reissue the token when it
 	// is about to expire.
 	auth.mutex.Lock()
 	defer auth.mutex.Unlock()
-	auth.token = info
-	auth.token.Value = String(value)
+	auth.token = token
 
 	// TODO: re-enable
 	// if auth.token.ExpiresAt != nil {

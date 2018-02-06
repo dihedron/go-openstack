@@ -58,8 +58,8 @@ func main() {
 		ScopeDomainName:  openstack.String("Default"),
 		NoCatalog:        true,
 	}
-	token, info, result, err := client.IdentityV3().CreateToken(opts2)
-	log.Debugf("main: token is %q\n", token)
+	info, result, err := client.IdentityV3().CreateToken(opts2)
+	log.Debugf("main: token is %q\n", info.Value)
 	log.Debugf("main: info is\n%s\n", log.ToJSON(info))
 	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
 	log.Debugf("main: call resulted in %v\n", err)
