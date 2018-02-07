@@ -181,17 +181,49 @@ type ReadTokenOpts struct {
 // ReadToken uses the provided parameters to read the given token and retrieve
 // information about it from the Identity server; this API requires a valid admin
 // token.
-func (api *IdentityV3API) ReadToken(opts *ReadTokenOpts) (bool, *Result, error) {
+func (api *IdentityV3API) ReadToken(opts *ReadTokenOpts) (*Token, *Result, error) {
 	output := &struct {
 		Token        *Token  `json:"token,omitempy"`
 		SubjectToken *string `header:"X-Subject-Token" json:"-"`
 	}{}
 
-	result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", true, opts, output)
+	result, err := api.Invoke(http.MethodGet, "./v3/auth/tokens", true, opts, output)
 	if result.Code == 200 {
+		output.Token.Value = output.SubjectToken
+		return output.Token, result, err
+	}
+
+	log.Debugf("IdentityV3.ReadToken: header is %s\n", *output.SubjectToken)
+
+	return nil, result, err
+}
+
+/*
+ * CHECK TOKEN
+ */
+
+// CheckTokenOpts contains the set of parameters and options used to perform the
+// validation of a token on the Identity server.
+type CheckTokenOpts struct {
+	AllowExpired bool   `url:"allow_expired,omitempty" json:"-"`
+	SubjectToken string `header:"X-Subject-Token" json:"-"`
+}
+
+// CheckToken uses the provided parameters to check the given token and retrieve
+// information about it from the Identity server; this API requires a valid admin
+// token.
+func (api *IdentityV3API) CheckToken(opts *CheckTokenOpts) (bool, *Result, error) {
+	// TODO: check if we need token in the struct
+	output := &struct {
+		//Token        *Token  `json:"token,omitempy"` // TODO: remove???
+		SubjectToken *string `header:"X-Subject-Token" json:"-"`
+	}{}
+
+	result, err := api.Invoke(http.MethodHead, "./v3/auth/tokens", true, opts, output)
+	if result.Code == 204 {
 		return true, result, err
 	}
-	log.Debugf("IdentityV3.ReadToken: header is %q\n", output.SubjectToken)
+	log.Debugf("IdentityV3.CheckToken: header is %q\n", output.SubjectToken)
 
 	return false, result, err
 }

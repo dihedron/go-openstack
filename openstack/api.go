@@ -86,7 +86,7 @@ func (api *API) PrepareRequest(method string, url string, authenticated bool, in
 			log.Errorf("API.PrepareRequest: no valid token available for authenticated call")
 			return nil, fmt.Errorf("no valid token for authenticated call")
 		}
-		log.Debugf("API.PrepareRequest: adding token %s", ZipString(*token.Value, 16))
+		log.Debugf("API.PrepareRequest: adding authentication token (X-Auth-Token): %s", ZipString(*token.Value, 16))
 		sling.Add("X-Auth-Token", *token.Value)
 	}
 
@@ -102,10 +102,9 @@ func (api *API) PrepareRequest(method string, url string, authenticated bool, in
 		t := reflect.TypeOf(input).Elem()
 		v := reflect.ValueOf(input).Elem()
 		for i := 0; i < t.NumField(); i++ {
-
 			if tag := t.Field(i).Tag.Get("header"); tag != "" {
 				value := reflect.ValueOf(v.Field(i).Interface()).String()
-				log.Warnf("API.PrepareRequest: adding header %q => %v", tag, value)
+				log.Debugf("API.PrepareRequest: adding header %q => %v", tag, value)
 				sling.Add(tag, value)
 			}
 		}

@@ -62,9 +62,41 @@ func main() {
 		ScopeDomainName:  openstack.String("Default"),
 		NoCatalog:        true,
 	}
-	info, result, err := client.IdentityV3().CreateToken(opts2)
-	log.Debugf("main: token is %q\n", *info.Value)
-	log.Debugf("main: info is\n%s\n", log.ToJSON(info))
+	token, result, err := client.IdentityV3().CreateToken(opts2)
+	log.Debugf("main: token is %q\n", *token.Value)
+	log.Debugf("main: token is\n%s\n", log.ToJSON(token))
+	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	if err != nil {
+		log.Debugf("main: call resulted in %v\n", err)
+	}
+
+	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                          READ TOKEN                               |")
+	log.Debugf("+-------------------------------------------------------------------+")
+
+	opts3 := &openstack.ReadTokenOpts{
+		AllowExpired: true,
+		NoCatalog:    false,
+		SubjectToken: *token.Value,
+	}
+	token, result, err = client.IdentityV3().ReadToken(opts3)
+	log.Debugf("main: token is %q\n", *token.Value)
+	log.Debugf("main: token is\n%s\n", log.ToJSON(token))
+	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	if err != nil {
+		log.Debugf("main: call resulted in %v\n", err)
+	}
+
+	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                          CHECK TOKEN                              |")
+	log.Debugf("+-------------------------------------------------------------------+")
+
+	opts4 := &openstack.CheckTokenOpts{
+		AllowExpired: true,
+		SubjectToken: *token.Value,
+	}
+	ok, result, err := client.IdentityV3().CheckToken(opts4)
+	log.Debugf("main: token valid: %t\n", ok)
 	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
 		log.Debugf("main: call resulted in %v\n", err)
