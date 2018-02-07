@@ -175,7 +175,7 @@ func (auth *Authenticator) Logout() error {
 	}
 	value := token.Value
 	if value != nil {
-		log.Debugf("Authenticator.Logout: invalidating authentication token %s", value)
+		log.Debugf("Authenticator.Logout: invalidating authentication token %s", ZipString(*value, 16))
 		auth.mutex.Lock()
 		defer auth.mutex.Unlock()
 		if auth.timer != nil {

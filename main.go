@@ -14,7 +14,9 @@ import (
 // https://developer.openstack.org/sdks/python/openstacksdk/users/profile.html#openstack.profile.Profile
 func main() {
 
-	log.Debugf("---------------------------------------------------------------------")
+	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                             LOGIN                                 |")
+	log.Debugf("+-------------------------------------------------------------------+")
 
 	endpoint := os.Getenv("OS_AUTH_URL")
 	if endpoint == "" {
@@ -43,11 +45,13 @@ func main() {
 	client.Connect(opts1)
 	defer client.Close()
 
-	os.Exit(0)
+	//os.Exit(0)
 
 	//time.Sleep(10 * time.Second)
 
-	log.Debugf("---------------------------------------------------------------------")
+	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                         CREATE TOKEN                              |")
+	log.Debugf("+-------------------------------------------------------------------+")
 
 	opts2 := &openstack.CreateTokenOpts{
 		Method:           "password",
@@ -59,10 +63,12 @@ func main() {
 		NoCatalog:        true,
 	}
 	info, result, err := client.IdentityV3().CreateToken(opts2)
-	log.Debugf("main: token is %q\n", info.Value)
+	log.Debugf("main: token is %q\n", *info.Value)
 	log.Debugf("main: info is\n%s\n", log.ToJSON(info))
 	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
-	log.Debugf("main: call resulted in %v\n", err)
+	if err != nil {
+		log.Debugf("main: call resulted in %v\n", err)
+	}
 
 	//client.Rea
 
