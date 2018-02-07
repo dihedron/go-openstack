@@ -109,7 +109,7 @@ func (auth *Authenticator) Login(opts *LoginOpts) error {
 		return err
 	}
 
-	log.Debugf("Authenticator.Login: token value is %v, token info is:\n%s\n", token.Value, log.ToJSON(token))
+	log.Debugf("Authenticator.Login: token value is %s, token info is:\n%s\n", *token.Value, log.ToJSON(token))
 
 	// now store that info inside the current authenticator and start the
 	// background goroutine that will automatically reissue the token when it

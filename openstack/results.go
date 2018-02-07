@@ -61,26 +61,38 @@ func NewResult(response *http.Response, data []byte) *Result {
 	return &r
 }
 
+// IsInformational returns whether the HTTP status code represents an informational
+// message (class 1xx).
 func (r Result) IsInformational() bool {
 	return r.Code >= 100 && r.Code < 200
 }
 
+// IsSuccess returns whether the HTTP status code represents a successful request
+// (class 2xx).
 func (r Result) IsSuccess() bool {
 	return r.Code >= 200 && r.Code < 300
 }
 
+// IsRedirection returns whether the HTTP status code represents a redirect
+// response (class 3xx).
 func (r Result) IsRedirection() bool {
 	return r.Code >= 300 && r.Code < 400
 }
 
+// IsClientError returns whether the HTTP status code represents a processing
+// error induced by the client via the request (class 4xx).
 func (r Result) IsClientError() bool {
 	return r.Code >= 400 && r.Code < 500
 }
 
+// IsServerError returns whether the HTTP status code represents a server-side
+// error (class 5xx).
 func (r Result) IsServerError() bool {
 	return r.Code >= 500 && r.Code < 600
 }
 
+// IsUnofficial returns whether the the HHTP status code is out of known ranges
+// (calss 6xx or more).
 func (r Result) IsUnofficial() bool {
 	return r.Code >= 600
 }

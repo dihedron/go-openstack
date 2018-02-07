@@ -182,6 +182,9 @@ type Project struct {
 	Domain *Domain `json:"domain,omitempty"`
 }
 
+// Role is a personality that a user assumes to perform a specific set of
+// operations. A role includes a set of rights and privileges. A user assumes
+// that role inherits those rights and privileges.
 type Role struct {
 	ID   *string `json:"id,omitempty"`
 	Name *string `json:"name,omitempty"`

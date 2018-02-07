@@ -213,17 +213,32 @@ type CheckTokenOpts struct {
 // information about it from the Identity server; this API requires a valid admin
 // token.
 func (api *IdentityV3API) CheckToken(opts *CheckTokenOpts) (bool, *Result, error) {
-	// TODO: check if we need token in the struct
-	output := &struct {
-		//Token        *Token  `json:"token,omitempy"` // TODO: remove???
-		SubjectToken *string `header:"X-Subject-Token" json:"-"`
-	}{}
-
-	result, err := api.Invoke(http.MethodHead, "./v3/auth/tokens", true, opts, output)
-	if result.Code == 204 {
+	result, err := api.Invoke(http.MethodHead, "./v3/auth/tokens", true, opts, nil)
+	log.Debugf("IdentityV3.CheckToken: result is %v (%v)", result, err)
+	if result.Code == 200 || result.Code == 204 {
 		return true, result, err
 	}
-	log.Debugf("IdentityV3.CheckToken: header is %q\n", output.SubjectToken)
+	return false, result, err
+}
 
+/*
+ * DELETE TOKEN
+ */
+
+// DeleteTokenOpts contains the set of parameters and options used to perform the
+// deletion of a token on the Identity server.
+type DeleteTokenOpts struct {
+	SubjectToken string `header:"X-Subject-Token" json:"-"`
+}
+
+// DeleteToken uses the provided parameters to delete the given token; the token
+// is immediately invalid regardless of the value in the expires_at attribute;
+// this API requires a valid admin token.
+func (api *IdentityV3API) DeleteToken(opts *DeleteTokenOpts) (bool, *Result, error) {
+	result, err := api.Invoke(http.MethodDelete, "./v3/auth/tokens", true, opts, nil)
+	log.Debugf("IdentityV3.DeleteToken: result is %v (%v)", result, err)
+	if result.Code == 200 || result.Code == 204 {
+		return true, result, err
+	}
 	return false, result, err
 }

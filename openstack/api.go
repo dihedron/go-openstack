@@ -131,7 +131,11 @@ func (api *API) HandleResponse(response *http.Response, output interface{}) (*Re
 		log.Errorf("API.HandleResponse: error reading response raw data: %v", err)
 		return nil, err
 	}
-	log.Debugf("API.HandleResponse: the response payload is:\n%s\n", string(data))
+	if len(data) > 0 {
+		log.Debugf("API.HandleResponse: the response payload is:\n%s\n", string(data))
+	} else {
+		log.Debugf("API.HandleResponse: no payload in response")
+	}
 
 	if output != nil {
 		if reflect.TypeOf(output).Elem().Kind() != reflect.Struct {
@@ -143,7 +147,7 @@ func (api *API) HandleResponse(response *http.Response, output interface{}) (*Re
 		// `entity:"failure"` respectively)
 		t := reflect.TypeOf(output).Elem()
 		v := reflect.ValueOf(output).Elem()
-		log.Debugf("API.HandleResponse: %T, %T, %d", t, v, v.Kind)
+		//log.Debugf("API.HandleResponse: %T, %T, %d", t, v, v.Kind)
 		for i := 0; i < t.NumField(); i++ {
 			if tag := t.Field(i).Tag.Get("header"); tag != "" {
 				value := v.Field(i)
@@ -159,12 +163,14 @@ func (api *API) HandleResponse(response *http.Response, output interface{}) (*Re
 			}
 		}
 
-		buffer := bytes.NewBuffer(data)
-		if err := json.NewDecoder(buffer).Decode(output); err != nil {
-			log.Errorf("Client.HandleResponse: error decoding response into entity: %v", err)
-			return NewResult(response, data), err
+		if len(data) > 0 {
+			buffer := bytes.NewBuffer(data)
+			if err := json.NewDecoder(buffer).Decode(output); err != nil {
+				log.Errorf("Client.HandleResponse: error decoding response into entity: %v", err)
+				return NewResult(response, data), err
+			}
+			log.Debugf("API.HandleResponse: deserialised entity is:\n%s\n", log.ToJSON(output))
 		}
-		log.Debugf("API.HandleResponse: deserialised entity is:\n%s\n", log.ToJSON(output))
 	}
 
 	return NewResult(response, data), nil

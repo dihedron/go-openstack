@@ -102,6 +102,20 @@ func main() {
 		log.Debugf("main: call resulted in %v\n", err)
 	}
 
+	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                          DELETE TOKEN                             |")
+	log.Debugf("+-------------------------------------------------------------------+")
+
+	opts5 := &openstack.DeleteTokenOpts{
+		SubjectToken: *token.Value,
+	}
+	ok, result, err = client.IdentityV3().DeleteToken(opts5)
+	log.Debugf("main: token valid: %t\n", ok)
+	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	if err != nil {
+		log.Debugf("main: call resulted in %v\n", err)
+	}
+
 	//client.Rea
 
 	//client.InitProfile()
