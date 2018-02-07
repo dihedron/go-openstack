@@ -103,6 +103,50 @@ func main() {
 	}
 
 	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                          GET CATALOG                              |")
+	log.Debugf("+-------------------------------------------------------------------+")
+
+	catalog, result, err := client.IdentityV3().ReadCatalog()
+	log.Debugf("main: catalog is:\n%s\n", log.ToJSON(catalog))
+	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	if err != nil {
+		log.Debugf("main: call resulted in %v\n", err)
+	}
+
+	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                         GET PROJECTS                              |")
+	log.Debugf("+-------------------------------------------------------------------+")
+
+	projects, result, err := client.IdentityV3().ReadProjects()
+	log.Debugf("main: projects are:\n%s\n", log.ToJSON(projects))
+	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	if err != nil {
+		log.Debugf("main: call resulted in %v\n", err)
+	}
+
+	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                          GET DOMAINS                              |")
+	log.Debugf("+-------------------------------------------------------------------+")
+
+	domains, result, err := client.IdentityV3().ReadDomains()
+	log.Debugf("main: domains are:\n%s\n", log.ToJSON(domains))
+	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	if err != nil {
+		log.Debugf("main: call resulted in %v\n", err)
+	}
+
+	// log.Debugf("+-------------------------------------------------------------------+")
+	// log.Debugf("|                          GET SYSTEMS                              |")
+	// log.Debugf("+-------------------------------------------------------------------+")
+
+	// systems, result, err := client.IdentityV3().ReadSystems()
+	// log.Debugf("main: systems are:\n%s\n", log.ToJSON(systems))
+	// log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	// if err != nil {
+	// 	log.Debugf("main: call resulted in %v\n", err)
+	// }
+
+	log.Debugf("+-------------------------------------------------------------------+")
 	log.Debugf("|                          DELETE TOKEN                             |")
 	log.Debugf("+-------------------------------------------------------------------+")
 

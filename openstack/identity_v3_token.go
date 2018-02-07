@@ -139,6 +139,7 @@ func (api *IdentityV3API) CreateToken(opts *CreateTokenOpts) (*Token, *Result, e
 	}{}
 
 	result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", false, input, output)
+	log.Debugf("IdentityV3.CreateToken: result is %v (%v)", result, err)
 	if output.SubjectToken != nil {
 		output.Token.Value = output.SubjectToken
 		return output.Token, result, err
@@ -188,6 +189,7 @@ func (api *IdentityV3API) ReadToken(opts *ReadTokenOpts) (*Token, *Result, error
 	}{}
 
 	result, err := api.Invoke(http.MethodGet, "./v3/auth/tokens", true, opts, output)
+	log.Debugf("IdentityV3.ReadToken: result is %v (%v)", result, err)
 	if result.Code == 200 {
 		output.Token.Value = output.SubjectToken
 		return output.Token, result, err
@@ -241,4 +243,87 @@ func (api *IdentityV3API) DeleteToken(opts *DeleteTokenOpts) (bool, *Result, err
 		return true, result, err
 	}
 	return false, result, err
+}
+
+/*
+ * GET CATALOG
+ */
+
+// ReadCatalog retrieves the catalog associated with the given authorisation
+// token; the catalog is returned even if the token was issued withouth a catalog
+// (?nocataog=true).
+func (api *IdentityV3API) ReadCatalog() (*[]Service, *Result, error) {
+	output := &struct {
+		Catalog *[]Service `json:"catalog,omitempty"`
+		Links   *Links     `json:"links,omitempty"`
+	}{}
+
+	result, err := api.Invoke(http.MethodGet, "./v3/auth/catalog", true, nil, output)
+	log.Debugf("IdentityV3.ReadCatalog: result is %v (%v)", result, err)
+	if result.Code == 200 {
+		return output.Catalog, result, err
+	}
+	return nil, result, err
+}
+
+/*
+ * GET PROJECTS
+ */
+
+// ReadProjects returns the list of projects that are available to be scoped to
+// based on the X-Auth-Token provided in the request. The structure of the
+// response is exactly the same as listing projects for a user.
+func (api *IdentityV3API) ReadProjects() (*[]Project, *Result, error) {
+	output := &struct {
+		Projects *[]Project `json:"projects,omitempty"`
+		Links    *Links     `json:"links,omitempty"`
+	}{}
+
+	result, err := api.Invoke(http.MethodGet, "./v3/auth/projects", true, nil, output)
+	log.Debugf("IdentityV3.ReadProjects: result is %v (%v)", result, err)
+	if result.Code == 200 {
+		return output.Projects, result, err
+	}
+	return nil, result, err
+}
+
+/*
+ * GET PROJECTS
+ */
+
+// ReadDomains returns the list of domains that are available to be scoped to
+// based on the X-Auth-Token provided in the request. The structure is the same
+// as listing domains.
+func (api *IdentityV3API) ReadDomains() (*[]Domain, *Result, error) {
+	output := &struct {
+		Domains *[]Domain `json:"domains,omitempty"`
+		Links   *Links    `json:"links,omitempty"`
+	}{}
+
+	result, err := api.Invoke(http.MethodGet, "./v3/auth/domains", true, nil, output)
+	log.Debugf("IdentityV3.ReadDomains: result is %v (%v)", result, err)
+	if result.Code == 200 {
+		return output.Domains, result, err
+	}
+	return nil, result, err
+}
+
+/*
+ * GET SYSTEMS
+ */
+
+// ReadSystems returns the list of systems that are available to be scoped to
+// based on the X-Auth-Token provided in the request.
+func (api *IdentityV3API) ReadSystems() (*[]System, *Result, error) {
+	output := &struct {
+		Systems *[]System `json:"system,omitempty"`
+		Links   *Links    `json:"links,omitempty"`
+	}{}
+
+	result, err := api.Invoke(http.MethodGet, "./v3/auth/system", true, nil, output)
+	log.Debugf("IdentityV3.ReadSystems: result is %v (%v)", result, err)
+	if result.Code == 200 {
+		return output.Systems, result, err
+	}
+	return nil, result, err
 }

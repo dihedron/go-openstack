@@ -5,6 +5,7 @@
 package openstack
 
 import (
+	"fmt"
 	"net/http"
 )
 
@@ -14,6 +15,11 @@ type Result struct {
 	Status      string
 	Description string
 	Data        []byte
+}
+
+// String returns a string representation of an HTTP result.
+func (r Result) String() string {
+	return fmt.Sprintf("%d - %s (%d bytes)", r.Code, r.Status, len(r.Data))
 }
 
 // NewResult maps the status code in an HTTP Response to the corresponding
