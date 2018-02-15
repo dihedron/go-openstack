@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/dihedron/go-openstack/log"
+	"github.com/dihedron/go-log/log"
 )
 
 func TestCreateTokenFromEnv(t *testing.T) {

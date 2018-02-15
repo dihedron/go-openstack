@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/dghubble/sling"
-	"github.com/dihedron/go-openstack/log"
+	"github.com/dihedron/go-log/log"
 )
 
 const (
@@ -95,7 +95,7 @@ func NewClient(authURL string, httpClient *http.Client, userAgent *string) *Clie
 		userAgent = String(DefaultUserAgent)
 	}
 
-	log.Debugf("NewClient: HTTP client will present itself as %q\n", userAgent)
+	log.Debugf("NewClient: HTTP client will present itself as %q\n", *userAgent)
 
 	client := &Client{
 		HTTPClient: *httpClient,
@@ -122,7 +122,7 @@ func NewClient(authURL string, httpClient *http.Client, userAgent *string) *Clie
 // Connect attempts to perform a login to an identity service already configured
 // via a call to For; the opts parameter is the set of values needed for logging
 // in to the identity service.
-func (c *Client) Connect(opts *LoginOpts) error {
+func (c *Client) Connect(opts *LoginOptions) error {
 
 	if c.Authenticator.AuthURL == nil {
 		log.Errorf("Client.Connect: no identity service URL configured")
@@ -194,6 +194,7 @@ func (c *Client) Connect(opts *LoginOpts) error {
 // Close closes the client and releases the identity token; it can be used
 // to defer client cleanup.
 func (c *Client) Close() error {
+	log.Debugf("Client.Close: closing client")
 	c.Services = map[string]interface{}{}
 	return c.Authenticator.Logout()
 }

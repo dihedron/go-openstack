@@ -8,6 +8,21 @@ package openstack
  * AUTHENTICATION AND TOKEN MANAGEMENT
  */
 
+// AppCredential provides a way to delegate a user’s authorization to an
+// application without sharing the user’s password authentication. This is a
+// useful security measure, especially for situations where the user’s
+// identification is provided by an external source, such as LDAP or a single-sign-on
+// service. Instead of storing user passwords in config files, a user creates an
+// application credential for a specific project, with all or a subset of the
+// role assignments they have on that project, and then stores the application
+// credential identifier and secret in the config file.
+type AppCredential struct {
+	ID     *string `json:"id, omitempty"`
+	Name   *string `json:"name,omitempty"`
+	Secret *string `json:"secret,imotempty"`
+	User   *User   `json:"user,omitempty"`
+}
+
 // Authentication contains the identity entity used to authenticate users and
 // issue tokens against a Keystone instance; it can be scoped (when either
 // Project or Domain is specified), implicitly unscoped (when neither is specified)
@@ -41,12 +56,13 @@ type Endpoint struct {
 }
 
 // Identity represents an identity, as granted by the Identity service to a
-// user providing the given password or token with the given authentication
-// method.
+// user providing the given password, token or application credential with the
+// given authentication method.
 type Identity struct {
-	Methods  *[]string `json:"methods,omitempty"`
-	Password *Password `json:"password,omitempty"`
-	Token    *Token    `json:"token,omitempty"`
+	Methods       *[]string      `json:"methods,omitempty"`
+	Password      *Password      `json:"password,omitempty"`
+	Token         *Token         `json:"token,omitempty"`
+	AppCredential *AppCredential `json:"application_credential,omitempty"`
 }
 
 // Links represents the links to the resource itself and its immediate siblings

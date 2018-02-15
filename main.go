@@ -7,12 +7,19 @@ package main
 import (
 	"os"
 
-	"github.com/dihedron/go-openstack/log"
+	"github.com/fatih/structs"
+
+	"github.com/dihedron/go-log/log"
 	"github.com/dihedron/go-openstack/openstack"
+	"github.com/dihedron/go-openstack/reflector"
 )
 
 // https://developer.openstack.org/sdks/python/openstacksdk/users/profile.html#openstack.profile.Profile
 func main() {
+
+	log.SetLevel(log.DBG)
+	log.SetStream(os.Stdout)
+	log.SetTimeFormat("15:04:05.000")
 
 	log.Debugf("+-------------------------------------------------------------------+")
 	log.Debugf("|                             LOGIN                                 |")
@@ -27,17 +34,18 @@ func main() {
 		}
 	}
 
-	log.SetLevel(log.DBG)
-	log.SetStream(os.Stdout)
-	log.SetTimeFormat("15:04:05.000")
-
-	opts1 := &openstack.LoginOpts{
+	opts1 := &openstack.LoginOptions{
 		UserName:       openstack.String("admin"),
 		UserDomainName: openstack.String("Default"),
 		UserPassword:   openstack.String("password"),
 		//UnscopedLogin:  openstack.Bool(true),
 		ScopeProjectName: openstack.String("admin"),
 		ScopeDomainName:  openstack.String("Default"),
+	}
+
+	fields := structs.Fields(opts1)
+	for _, field := range fields {
+		log.Debugf("field: %v => %v (%v)", field.Name(), field.Value(), field.Tag("header"))
 	}
 
 	client := openstack.NewDefaultClient(endpoint)
@@ -53,15 +61,26 @@ func main() {
 	log.Debugf("|                         CREATE TOKEN                              |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	opts2 := &openstack.CreateTokenOpts{
-		Method:           "password",
-		UserName:         openstack.String("admin"),
-		UserDomainName:   openstack.String("Default"),
-		UserPassword:     openstack.String("password"),
-		ScopeProjectName: openstack.String("admin"),
-		ScopeDomainName:  openstack.String("Default"),
-		NoCatalog:        true,
+	opts2 := &openstack.CreateTokenByPasswordOptions{
+		CreateTokenOptions: openstack.CreateTokenOptions{
+			NoCatalog:        true,
+			Authenticated:    true,
+			ScopeProjectName: openstack.String("admin"),
+			ScopeDomainName:  openstack.String("Default"),
+		},
+		UserName:       openstack.String("admin"),
+		UserDomainName: openstack.String("Default"),
+		UserPassword:   openstack.String("password"),
 	}
+
+	for _, field := range reflector.GetFields(opts2) {
+		log.Warnf("main: field: %v (%T)", field, field)
+	}
+	log.Warnf("main: ----------------------------------------------")
+	for _, field := range reflector.GetFields(*opts2) {
+		log.Warnf("main: field: %v (%T)", field, field)
+	}
+
 	token, result, err := client.IdentityV3().CreateToken(opts2)
 	log.Debugf("main: token is %q\n", *token.Value)
 	log.Debugf("main: token is\n%s\n", log.ToJSON(token))

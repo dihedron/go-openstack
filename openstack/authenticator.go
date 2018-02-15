@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dihedron/go-openstack/log"
+	"github.com/dihedron/go-log/log"
 )
 
 // Authenticator uses the services of an IdentityAPIV3 to get the first access
@@ -51,29 +51,37 @@ type Authenticator struct {
 	timer *time.Timer
 }
 
-// LoginOpts is a subset of Identity V3's CreateTokenOpts; it assumes some
-// defaults and is used when invoking the IdentityV3API's CreateToken method; it
-// can be filled with values taken from the process enviroment.
-type LoginOpts struct {
-	// UserName, UserDomainName and UserPassword are used for password-based
-	// authentication; this is the preferred method for issuing the first,
-	// unscoped token; further calls can employ this first unscoped token's ID
-	// to issue new scoped tokens.
+// LoginOptions is a subset of Identity V3's CreateToken[*]Options; it assumes
+// some defaults and is used when invoking the IdentityV3API's CreateToken method;
+// it can be filled with values taken from the process enviroment.
+type LoginOptions struct {
+	// UserName, UserDomainID and UserDomainName are used for password- and
+	// application credential-based authentication.
 	UserName       *string
+	UserDomainID   *string
 	UserDomainName *string
-	UserPassword   *string
+
+	// ScopeProjectID, ScopeProjectName, ScopeDomainID, ScopeDomainName and
+	// UnscopedLogin specify the scope of
+	// the requested authentication token; these parameters are in common between
+	// password- and token-based logins.
+	ScopeProjectID   *string
+	ScopeProjectName *string
+	ScopeDomainID    *string
+	ScopeDomainName  *string
+	UnscopedLogin    *bool
+
+	// UserPassword is used for password-based authentication.
+	UserPassword *string
 
 	// TokenID is an existing valid token; when this value is not nil, the
 	// token-based authentication method is used; the most common case when this
 	// happens is to reissue a token that is about to expire.
 	TokenID *string
 
-	// ScopeProjectName, ScopeDomainName and UnscopedLogin specify the scope of
-	// the requested authentication token; these parameters are in common between
-	// password- and token-based logins.
-	ScopeProjectName *string
-	ScopeDomainName  *string
-	UnscopedLogin    *bool
+	//
+	AppCredentialID *string
+	Secret          *string
 }
 
 // Login performs a logon using the given options and sets the returned token
@@ -82,25 +90,55 @@ type LoginOpts struct {
 // moreover this method parses the catalog and initialises all the other available
 // service API references using the information about services, their versions and
 // available endpoints fo the current token.
-func (auth *Authenticator) Login(opts *LoginOpts) error {
+func (auth *Authenticator) Login(opts *LoginOptions) error {
 	var err error
-	cto := &CreateTokenOpts{
-		NoCatalog:        false,
-		ScopeProjectName: opts.ScopeProjectName,
-		ScopeDomainName:  opts.ScopeDomainName,
-		UnscopedToken:    opts.UnscopedLogin,
-	}
+
+	var cto interface{}
 
 	if opts.TokenID != nil && len(strings.TrimSpace(*opts.TokenID)) > 0 {
-		cto.Method = "token"
-		cto.TokenID = opts.TokenID
+		cto = CreateTokenByTokenOptions{
+			CreateTokenOptions: CreateTokenOptions{
+				NoCatalog:        false,
+				ScopeProjectID:   opts.ScopeProjectID,
+				ScopeProjectName: opts.ScopeProjectName,
+				ScopeDomainID:    opts.ScopeDomainID,
+				ScopeDomainName:  opts.ScopeDomainName,
+				UnscopedToken:    opts.UnscopedLogin,
+			},
+			TokenID: opts.TokenID,
+		}
 		log.Debugf("Authenticator.Login: performing token-based authentication (%s)", ZipString(*opts.TokenID, 10))
-	} else {
-		cto.Method = "password"
-		cto.UserName = opts.UserName
-		cto.UserDomainName = opts.UserDomainName
-		cto.UserPassword = opts.UserPassword
+	} else if opts.UserPassword != nil && len(strings.TrimSpace(*opts.UserPassword)) > 0 {
+		cto = CreateTokenByPasswordOptions{
+			CreateTokenOptions: CreateTokenOptions{
+				NoCatalog:        false,
+				ScopeProjectID:   opts.ScopeProjectID,
+				ScopeProjectName: opts.ScopeProjectName,
+				ScopeDomainID:    opts.ScopeDomainID,
+				ScopeDomainName:  opts.ScopeDomainName,
+				UnscopedToken:    opts.UnscopedLogin,
+			},
+			UserName:       opts.UserName,
+			UserDomainName: opts.UserDomainName,
+			UserPassword:   opts.UserPassword,
+		}
 		log.Debugf("Authenticator.Login: performing password-based authentication (%s\\%s:%s)", *opts.UserDomainName, *opts.UserName, *opts.UserPassword)
+	} else if opts.AppCredentialID != nil && len(strings.TrimSpace(*opts.AppCredentialID)) > 0 && opts.Secret != nil && len(strings.TrimSpace(*opts.Secret)) > 0 {
+		cto = CreateTokenByAppCredentialOptions{
+			CreateTokenOptions: CreateTokenOptions{
+				NoCatalog:        false,
+				ScopeProjectID:   opts.ScopeProjectID,
+				ScopeProjectName: opts.ScopeProjectName,
+				ScopeDomainID:    opts.ScopeDomainID,
+				ScopeDomainName:  opts.ScopeDomainName,
+				UnscopedToken:    opts.UnscopedLogin,
+			},
+			UserName:        opts.UserName,
+			UserDomainName:  opts.UserDomainName,
+			AppCredentialID: opts.AppCredentialID,
+			Secret:          opts.Secret,
+		}
+		log.Debugf("Authenticator.Login: performing app-credential-based authentication (%s:%s)", *opts.AppCredentialID, *opts.Secret)
 	}
 
 	token, _, err := auth.Identity.CreateToken(cto)

@@ -3,9 +3,10 @@ package openstack
 import (
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 
-	"github.com/dihedron/go-openstack/log"
+	"github.com/dihedron/go-log/log"
 )
 
 // IdentityV3API represents the identity API ver. 3, providing support for
@@ -15,17 +16,13 @@ type IdentityV3API struct {
 	API
 }
 
-// CreateTokenOpts contains the set of parameters and options used to perform an
-// authentication (create an authentication token).
-type CreateTokenOpts struct {
+// CreateTokenOptions contains the common set of parameters and options used to
+// perform an authentication (create an authentication token) on Keystone; it is
+// not supposed to be used directly, but rather embedded by more specificy
+// authentication option structures.
+type CreateTokenOptions struct {
 	NoCatalog        bool `url:"nocatalog,omitempty"`
-	Method           string
-	UserID           *string
-	UserName         *string
-	UserDomainID     *string
-	UserDomainName   *string
-	UserPassword     *string
-	TokenID          *string
+	Authenticated    bool
 	ScopeProjectID   *string
 	ScopeProjectName *string
 	ScopeDomainID    *string
@@ -33,64 +30,166 @@ type CreateTokenOpts struct {
 	UnscopedToken    *bool
 }
 
+// CreateTokenByPasswordOptions embeds the CreateTokenOptions common parameters
+// and provides some more specific ones for password-based authentication.
+type CreateTokenByPasswordOptions struct {
+	UserID         *string
+	UserName       *string
+	UserDomainID   *string
+	UserDomainName *string
+	UserPassword   *string
+	CreateTokenOptions
+}
+
+// CreateTokenByTokenOptions embeds the CreateTokenOptions common parameters and
+// provides a way to specify more specific ones for authentication based on a
+// pre-existing, unscoped token.
+type CreateTokenByTokenOptions struct {
+	TokenID *string
+	CreateTokenOptions
+}
+
+// CreateTokenByAppCredentialOptions embeds the CreateTokenOptions common
+// parameters and provides some more specific ones for authentication based on
+// application credentials provided to an application that will act on behalf of
+// a user.
+type CreateTokenByAppCredentialOptions struct {
+	Secret          *string
+	AppCredentialID *string
+	UserID          *string
+	UserName        *string
+	UserDomainID    *string
+	UserDomainName  *string
+	CreateTokenOptions
+}
+
 /*
  * CREATE TOKEN
  */
 
-// CreateToken uses the provided parameters to authenticate the client to the
-// Keystone server and receive a token.
-func (api *IdentityV3API) CreateToken(opts *CreateTokenOpts) (*Token, *Result, error) {
+// CreateToken uses the provided parameters to authenticate the client or the
+// application to the Keystone server and receive a token; application can be
+// performed via username and password ("password" method), via an existing
+// token ("token" method, e.g. when an unscoped token is already available), or
+// via a pre-existing secret issued by Keystone ("application_credential" method,
+// used to authenticate applications to the platform as if it were interacting on
+// behalf of a user and authorising it to a  subset of the user's resources
+// without sharing the user's credentials).
+func (api *IdentityV3API) CreateToken(opts interface{}) (*Token, *Result, error) {
 
 	input := &struct {
 		NoCatalog bool            `url:"nocatalog,omitempty" json:"-"`
 		Auth      *Authentication `json:"auth,omitempty"`
-	}{
-		NoCatalog: opts.NoCatalog,
-		Auth: &Authentication{
+	}{}
+
+	// extract the struct from the pointer
+	rv := reflect.ValueOf(opts)
+	for rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Interface {
+		log.Debugf("IdentityV3.CreateToken: %v -> %v", rv.Kind(), rv.Type())
+		rv = rv.Elem()
+	}
+	log.Debugf("IdentityV3.CreateToken: %v -> %v", rv.Kind(), rv.Type())
+	opts = rv.Interface()
+
+	authenticated := false
+	switch opts := opts.(type) {
+	case CreateTokenByPasswordOptions:
+		log.Debugf("IdentityV3.CreateToken: logging in by password")
+		input.NoCatalog = opts.NoCatalog
+		input.Auth = &Authentication{
 			Identity: &Identity{
 				Methods: &[]string{
-					opts.Method,
+					"password",
+				},
+				Password: &Password{
+					User: &User{
+						ID:       opts.UserID,
+						Name:     opts.UserName,
+						Password: opts.UserPassword,
+						Domain: &Domain{
+							ID:   opts.UserDomainID,
+							Name: opts.UserDomainName,
+						},
+					},
 				},
 			},
-		},
-	}
+		}
+		authenticated = opts.Authenticated
+		initCreateTokenOptionsScope(&opts.CreateTokenOptions)
 
-	if opts.Method == "password" {
-		if opts.UserID != nil && len(strings.TrimSpace(*opts.UserID)) > 0 {
-			input.Auth.Identity.Password = &Password{
-				User: &User{
-					ID:       opts.UserID,
-					Password: opts.UserPassword,
+	case CreateTokenByTokenOptions:
+		log.Debugf("IdentityV3.CreateToken: logging in by token")
+
+		input.NoCatalog = opts.NoCatalog
+		input.Auth = &Authentication{
+			Identity: &Identity{
+				Methods: &[]string{
+					"token",
 				},
-			}
-		} else {
-			input.Auth.Identity.Password = &Password{
-				User: &User{
-					Name:     opts.UserName,
-					Password: opts.UserPassword,
+				Token: &Token{
+					ID: opts.TokenID,
 				},
-			}
-			if opts.UserDomainID != nil && len(strings.TrimSpace(*opts.UserDomainID)) > 0 {
-				input.Auth.Identity.Password.User.Domain = &Domain{
-					ID: opts.UserDomainID,
-				}
-			} else {
-				input.Auth.Identity.Password.User.Domain = &Domain{
-					Name: opts.UserDomainName,
-				}
+			},
+		}
+		authenticated = opts.Authenticated
+		initCreateTokenOptionsScope(&opts.CreateTokenOptions)
+
+	case CreateTokenByAppCredentialOptions:
+		log.Debugf("IdentityV3.CreateToken: logging in by app credential")
+
+		input.NoCatalog = opts.NoCatalog
+		input.Auth = &Authentication{
+			Identity: &Identity{
+				Methods: &[]string{
+					"application_credential",
+				},
+				AppCredential: &AppCredential{
+					ID: opts.AppCredentialID,
+					User: &User{
+						ID:   opts.UserID,
+						Name: opts.UserName,
+						Domain: &Domain{
+							ID:   opts.UserDomainID,
+							Name: opts.UserDomainName,
+						},
+					},
+				},
+			},
+		}
+		if opts.AppCredentialID != nil && len(strings.TrimSpace(*opts.AppCredentialID)) > 0 {
+			input.Auth.Identity.AppCredential = &AppCredential{
+				ID: opts.AppCredentialID,
 			}
 		}
-	} else if opts.Method == "token" {
-		if opts.TokenID != nil && len(strings.TrimSpace(*opts.TokenID)) > 0 {
-			input.Auth.Identity.Token = &Token{
-				ID: opts.TokenID,
-			}
-		}
+		authenticated = opts.Authenticated
+		initCreateTokenOptionsScope(&opts.CreateTokenOptions)
+
+	default:
+		log.Errorf("IdentityV3.CreateToken: unsupported input type: %T (%v)", opts, opts)
 	}
 
+	log.Debugf("IdentityV3.CreateToken: entity in request body is\n%s\n", log.ToJSON(input))
+
+	output := &struct {
+		SubjectToken *string `header:"X-Subject-Token" json:"-"`
+		Token        *Token  `json:"token,omitempy"`
+	}{}
+
+	log.Debugf("IdentityV3.CreateToken: before invoking API")
+
+	result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", authenticated, input, output)
+	log.Debugf("IdentityV3.CreateToken: result is %v (%v)", result, err)
+	if output.SubjectToken != nil {
+		output.Token.Value = output.SubjectToken
+		return output.Token, result, err
+	}
+	return output.Token, result, err
+}
+
+func initCreateTokenOptionsScope(opts *CreateTokenOptions) interface{} {
 	// manage scoped/unscoped token requests
 	if opts.ScopeProjectID != nil && len(strings.TrimSpace(*opts.ScopeProjectID)) > 0 {
-		input.Auth.Scope = &Scope{
+		return &Scope{
 			Project: &Project{
 				ID: opts.ScopeProjectID,
 			},
@@ -111,47 +210,32 @@ func (api *IdentityV3API) CreateToken(opts *CreateTokenOpts) (*Token, *Result, e
 				Name: opts.ScopeDomainName,
 			}
 		}
-		input.Auth.Scope = scope
+		return scope
 	} else {
 		if opts.ScopeDomainID != nil && len(strings.TrimSpace(*opts.ScopeDomainID)) > 0 {
-			input.Auth.Scope = &Scope{
+			return &Scope{
 				Domain: &Domain{
 					ID: opts.ScopeDomainID,
 				},
 			}
 		} else if opts.ScopeDomainName != nil && len(strings.TrimSpace(*opts.ScopeDomainName)) > 0 {
-			input.Auth.Scope = &Scope{
+			return &Scope{
 				Domain: &Domain{
 					Name: opts.ScopeDomainName,
 				},
 			}
 		} else if opts.UnscopedToken != nil && *opts.UnscopedToken {
 			// all values are null: the request is unscoped
-			input.Auth.Scope = String("unscoped")
+			return String("unscoped")
 		}
 	}
-
-	log.Debugf("IdentityV3.CreateToken: entity in request body is\n%s\n", log.ToJSON(input))
-
-	output := &struct {
-		SubjectToken *string `header:"X-Subject-Token" json:"-"`
-		Token        *Token  `json:"token,omitempy"`
-	}{}
-
-	result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", false, input, output)
-	log.Debugf("IdentityV3.CreateToken: result is %v (%v)", result, err)
-	if output.SubjectToken != nil {
-		output.Token.Value = output.SubjectToken
-		return output.Token, result, err
-	}
-	return output.Token, result, err
+	return nil
 }
 
 // CreateTokenFromEnv uses the information in the environment to authenticate the
 // client to the Keystore server and receive a token.
 func (api *IdentityV3API) CreateTokenFromEnv() (*Token, *Result, error) {
-	opts := &CreateTokenOpts{
-		Method:         "password",
+	opts := &CreateTokenByPasswordOptions{
 		UserName:       String(os.Getenv("OS_USERNAME")),
 		UserPassword:   String(os.Getenv("OS_PASSWORD")),
 		UserDomainName: String(os.Getenv("OS_USER_DOMAIN_NAME")),
