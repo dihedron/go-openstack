@@ -57,8 +57,8 @@ type Authenticator struct {
 type LoginOptions struct {
 	// UserName, UserDomainID and UserDomainName are used for password- and
 	// application credential-based authentication.
-	UserName       *string
-	UserDomainID   *string
+	UserName       *string `todo:"remove"`
+	UserDomainID   *string `todo:"remove"`
 	UserDomainName *string
 
 	// ScopeProjectID, ScopeProjectName, ScopeDomainID, ScopeDomainName and
@@ -107,7 +107,7 @@ func (auth *Authenticator) Login(opts *LoginOptions) error {
 			},
 			TokenID: opts.TokenID,
 		}
-		log.Debugf("Authenticator.Login: performing token-based authentication (%s)", ZipString(*opts.TokenID, 10))
+		log.Debugf("performing token-based authentication (%s)", ZipString(*opts.TokenID, 10))
 	} else if opts.UserPassword != nil && len(strings.TrimSpace(*opts.UserPassword)) > 0 {
 		cto = CreateTokenByPasswordOptions{
 			CreateTokenOptions: CreateTokenOptions{
@@ -122,7 +122,7 @@ func (auth *Authenticator) Login(opts *LoginOptions) error {
 			UserDomainName: opts.UserDomainName,
 			UserPassword:   opts.UserPassword,
 		}
-		log.Debugf("Authenticator.Login: performing password-based authentication (%s\\%s:%s)", *opts.UserDomainName, *opts.UserName, *opts.UserPassword)
+		log.Debugf("performing password-based authentication (%s\\%s:%s)", *opts.UserDomainName, *opts.UserName, *opts.UserPassword)
 	} else if opts.AppCredentialID != nil && len(strings.TrimSpace(*opts.AppCredentialID)) > 0 && opts.Secret != nil && len(strings.TrimSpace(*opts.Secret)) > 0 {
 		cto = CreateTokenByAppCredentialOptions{
 			CreateTokenOptions: CreateTokenOptions{
@@ -138,16 +138,16 @@ func (auth *Authenticator) Login(opts *LoginOptions) error {
 			AppCredentialID: opts.AppCredentialID,
 			Secret:          opts.Secret,
 		}
-		log.Debugf("Authenticator.Login: performing app-credential-based authentication (%s:%s)", *opts.AppCredentialID, *opts.Secret)
+		log.Debugf("performing app-credential-based authentication (%s:%s)", *opts.AppCredentialID, *opts.Secret)
 	}
 
 	token, _, err := auth.Identity.CreateToken(cto)
 	if err != nil {
-		log.Errorf("Authenticator.Login: login failed: %v", err)
+		log.Errorf("login failed: %v", err)
 		return err
 	}
 
-	log.Debugf("Authenticator.Login: token value is %s, token info is:\n%s\n", *token.Value, log.ToJSON(token))
+	log.Debugf("token value is %s, token info is:\n%s\n", *token.Value, log.ToJSON(token))
 
 	// now store that info inside the current authenticator and start the
 	// background goroutine that will automatically reissue the token when it
@@ -158,10 +158,10 @@ func (auth *Authenticator) Login(opts *LoginOptions) error {
 
 	// TODO: re-enable
 	// if auth.token.ExpiresAt != nil {
-	// 	log.Debugf("Authenticator.Login: setting timer for token refresh")
+	// 	log.Debugf("setting timer for token refresh")
 	// 	if expiryDate, err := time.Parse(ISO8601, *auth.token.ExpiresAt); err == nil {
 	// 		when := expiryDate.Sub(time.Now().Add(30 * time.Second))
-	// 		log.Debugf("Authenticator.Login: timer will fire in %v", when)
+	// 		log.Debugf("timer will fire in %v", when)
 	// 		//auth.tokenTimer = time.NewTimer(when)
 	//if timer != nil do this, otherwise reset it afteer draining
 	// 		auth.timer = time.NewTimer(5 * time.Second)
@@ -176,7 +176,7 @@ func (auth *Authenticator) Login(opts *LoginOptions) error {
 	// 			auth.Login(&opts)
 	// 		}(*lo)
 	// 	} else {
-	// 		log.Errorf("Authenticator.Login: error parsing date: %v", err)
+	// 		log.Errorf("error parsing date: %v", err)
 	// 	}
 	// }
 
@@ -206,18 +206,18 @@ func (auth *Authenticator) GetCatalog() *[]Service {
 // Logout invalidates the current authentication token so that all succeding
 // API calls will fail as unauthorised.
 func (auth *Authenticator) Logout() error {
-	log.Debugf("Authenticator.Logout: logging out")
+	log.Debugf("logging out")
 	token := auth.GetToken()
 	if token == nil {
 		return nil
 	}
 	value := token.Value
 	if value != nil {
-		log.Debugf("Authenticator.Logout: invalidating authentication token %s", ZipString(*value, 16))
+		log.Debugf("invalidating authentication token %s", ZipString(*value, 16))
 		auth.mutex.Lock()
 		defer auth.mutex.Unlock()
 		if auth.timer != nil {
-			log.Debugf("Authenticator.Logout: stopping timer")
+			log.Debugf("stopping timer")
 			if !auth.timer.Stop() {
 				// drain the timer, as per the docs
 				<-auth.timer.C

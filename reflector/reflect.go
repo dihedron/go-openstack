@@ -14,10 +14,10 @@ func StructFromPointer(obj interface{}) interface{} {
 	// extract the struct from the pointer
 	rv := reflect.ValueOf(obj)
 	for rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Interface {
-		log.Debugf("PointerToStruct: %v -> %v", rv.Kind(), rv.Type())
+		log.Debugf("%v -> %v", rv.Kind(), rv.Type())
 		rv = rv.Elem()
 	}
-	log.Debugf("PointerToStruct: %v -> %v", rv.Kind(), rv.Type())
+	log.Debugf("%v -> %v", rv.Kind(), rv.Type())
 	obj = rv.Interface()
 	return obj
 }

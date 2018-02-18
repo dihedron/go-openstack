@@ -145,9 +145,9 @@ func TestCreateTokenParam(t *testing.T) {
 		},
 	}
 	for test, opts := range tests {
-		token, _, _, _ := client.IdentityV3().CreateToken(opts)
+		token, _, _ := client.IdentityV3().CreateToken(opts)
 
-		if len(token) == 0 {
+		if token == nil {
 			t.Errorf("Identity.TestCreateToken%s: no token returned", test)
 			t.FailNow()
 		}

@@ -68,18 +68,18 @@ func NewClient(authURL string, httpClient *http.Client, userAgent *string) *Clie
 
 	if len(strings.TrimSpace(authURL)) == 0 {
 		authURL = os.Getenv("OS_AUTH_URL")
-		log.Debugf("NewClient: identity service URL through $OS_AUTH_URL\n")
+		log.Debugf("identity service URL through $OS_AUTH_URL\n")
 	}
 
 	if authURL == "" {
-		log.Errorln("NewClient: no identity service URL, please provide URL of identity service either explicitly or through $OS_AUTH_URL")
+		log.Errorln("no identity service URL, please provide URL of identity service either explicitly or through $OS_AUTH_URL")
 		return nil
 	}
 
-	log.Debugf("NewClient: connecting to identity service at %q\n", authURL)
+	log.Debugf("connecting to identity service at %q\n", authURL)
 
 	if httpClient == nil {
-		log.Debugln("NewClient: connecting using library-provided HTTP client")
+		log.Debugln("connecting using library-provided HTTP client")
 		httpClient = &http.Client{
 			Timeout: time.Second * 10,
 			Transport: &http.Transport{
@@ -95,7 +95,7 @@ func NewClient(authURL string, httpClient *http.Client, userAgent *string) *Clie
 		userAgent = String(DefaultUserAgent)
 	}
 
-	log.Debugf("NewClient: HTTP client will present itself as %q\n", *userAgent)
+	log.Debugf("HTTP client will present itself as %q\n", *userAgent)
 
 	client := &Client{
 		HTTPClient: *httpClient,
@@ -125,7 +125,7 @@ func NewClient(authURL string, httpClient *http.Client, userAgent *string) *Clie
 func (c *Client) Connect(opts *LoginOptions) error {
 
 	if c.Authenticator.AuthURL == nil {
-		log.Errorf("Client.Connect: no identity service URL configured")
+		log.Errorf("no identity service URL configured")
 		return fmt.Errorf("no valid identity service URL")
 	}
 
@@ -133,30 +133,30 @@ func (c *Client) Connect(opts *LoginOptions) error {
 
 	err := c.Authenticator.Login(opts)
 	if err != nil {
-		log.Errorf("Client.Connect: error logging in to the identity service at %q", c.Authenticator.AuthURL)
+		log.Errorf("error logging in to the identity service at %q", c.Authenticator.AuthURL)
 		return err
 	}
 
 	if c.Authenticator.GetCatalog() == nil {
-		log.Warnf("Client.Connect: no catalog info available (maybe it's an unscoped login?)")
+		log.Warnf("no catalog info available (maybe it's an unscoped login?)")
 		//return fmt.Errorf("no catalog information available from identity service")
 		return nil
 	}
 
 	for _, service := range *c.Authenticator.GetCatalog() {
-		// log.Debugf("Client.Connect: checking service %q (%q)\n", *service.Type, *service.Name)
+		// log.Debugf("checking service %q (%q)\n", *service.Type, *service.Name)
 
 		//outer:
 		for _, endpoint := range *service.Endpoints {
-			// log.Debugf("Client.Connect: checking endpoint, interface %q, region %q, URL %q\n", *endpoint.Interface, *endpoint.Region, *endpoint.URL)
+			// log.Debugf("checking endpoint, interface %q, region %q, URL %q\n", *endpoint.Interface, *endpoint.Region, *endpoint.URL)
 			// inner:
 			if c.Profile != nil {
 				// look for a match between a service and a filter before proceeding
-				log.Debugln("Client.Connect: applying filters to catalog")
+				log.Debugln("applying filters to catalog")
 
 			inner:
 				for _, filter := range c.Profile.Filters {
-					// log.Debugf("Client.Connect: does filter type %q, interface %q, region %q, URL %q match?\n", *filter.Type, *endpoint.Interface, *endpoint.Region, *endpoint.URL)
+					// log.Debugf("does filter type %q, interface %q, region %q, URL %q match?\n", *filter.Type, *endpoint.Interface, *endpoint.Region, *endpoint.URL)
 					if *service.Type != *filter.Type {
 						continue inner
 					}
@@ -170,7 +170,7 @@ func (c *Client) Connect(opts *LoginOptions) error {
 						continue inner
 					}
 
-					log.Debugf("Client.Connect: service %q (type: %q, interface %q, region %q, URL %q) matches filter, adding to catalog\n", *service.Name, *service.Type, *endpoint.Interface, *endpoint.Region, *endpoint.URL)
+					log.Debugf("service %q (type: %q, interface %q, region %q, URL %q) matches filter, adding to catalog\n", *service.Name, *service.Type, *endpoint.Interface, *endpoint.Region, *endpoint.URL)
 				}
 			}
 
@@ -183,7 +183,7 @@ func (c *Client) Connect(opts *LoginOptions) error {
 					},
 				}
 			default:
-				log.Debugf("Client.Connect: unsupported service %q (type: %q)\n", *service.Name, *service.Type)
+				log.Debugf("unsupported service %q (type: %q)\n", *service.Name, *service.Type)
 			}
 		}
 	}
@@ -191,10 +191,10 @@ func (c *Client) Connect(opts *LoginOptions) error {
 	return nil
 }
 
-// Close closes the client and releases the identity token; it can be used
-// to defer client cleanup.
+// Close closes the client and releases the identity token; it can be used to
+// defer client cleanup.
 func (c *Client) Close() error {
-	log.Debugf("Client.Close: closing client")
+	log.Debugf("closing client")
 	c.Services = map[string]interface{}{}
 	return c.Authenticator.Logout()
 }

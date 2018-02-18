@@ -13,6 +13,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/fatih/structs"
+
 	"github.com/dghubble/sling"
 	"github.com/dihedron/go-log/log"
 )
@@ -45,17 +47,17 @@ type API struct {
 // method uses their default implementations which relies on tags as noted above.
 func (api *API) Invoke(method string, url string, authenticated bool, input interface{}, output interface{}) (*Result, error) {
 
-	log.Debugf("API.Invoke: calling method %q on URL %q", method, url)
+	log.Debugf("calling method %q on URL %q", method, url)
 
 	request, err := api.PrepareRequest(method, url, authenticated, input)
 	if err != nil {
-		log.Errorf("API.Invoke: error creating request: %v", err)
+		log.Errorf("error creating request: %v", err)
 		return nil, err
 	}
 
 	response, err := api.client.HTTPClient.Do(request)
 	if err != nil {
-		log.Errorf("API.Invoke: error sending request: %v", err)
+		log.Errorf("error sending request: %v", err)
 		return nil, err
 	}
 
@@ -63,7 +65,7 @@ func (api *API) Invoke(method string, url string, authenticated bool, input inte
 
 	result, err := api.HandleResponse(response, output)
 	if err != nil {
-		log.Errorf("API.Invoke: error handling response: %v", err)
+		log.Errorf("error handling response: %v", err)
 	}
 	return result, err
 }
@@ -75,7 +77,7 @@ func (api *API) Invoke(method string, url string, authenticated bool, input inte
 // optional; if this is the case, pass nil for "input".
 func (api *API) PrepareRequest(method string, url string, authenticated bool, input interface{}) (*http.Request, error) {
 
-	log.Debugf("API.PrepareRequest: preparing %s request for %s (authenticated: %t)", strings.ToUpper(method), url, authenticated)
+	log.Debugf("preparing %s request for %s (authenticated: %t)", strings.ToUpper(method), url, authenticated)
 
 	sling := api.requestor.New().Method(method).Path(url)
 
@@ -83,39 +85,52 @@ func (api *API) PrepareRequest(method string, url string, authenticated bool, in
 	if authenticated {
 		token := api.client.Authenticator.GetToken()
 		if token == nil || token.Value == nil {
-			log.Errorf("API.PrepareRequest: no valid token available for authenticated call")
+			log.Errorf("no valid token available for authenticated call")
 			return nil, fmt.Errorf("no valid token for authenticated call")
 		}
-		log.Debugf("API.PrepareRequest: adding authentication token (X-Auth-Token): %s", ZipString(*token.Value, 16))
+		log.Debugf("adding authentication token (X-Auth-Token): %s", ZipString(*token.Value, 16))
 		sling.Add("X-Auth-Token", *token.Value)
 	}
 
 	if input != nil {
 		if reflect.TypeOf(input).Elem().Kind() != reflect.Struct {
-			panic("API.PrepareRequest: only structs can be passed as API input")
+			panic("only structs can be passed as API input")
 		}
 
 		// add query parameters
 		sling.QueryStruct(input)
 
 		// add headers
-		t := reflect.TypeOf(input).Elem()
-		v := reflect.ValueOf(input).Elem()
-		for i := 0; i < t.NumField(); i++ {
-			if tag := t.Field(i).Tag.Get("header"); tag != "" {
-				value := reflect.ValueOf(v.Field(i).Interface()).String()
-				log.Debugf("API.PrepareRequest: adding header %q => %v", tag, value)
-				sling.Add(tag, value)
-			}
-		}
+		addHeaders(sling, input)
 
 		// add entity to request body
 		sling.BodyJSON(input)
 	}
 
-	log.Debugf("API.PrepareRequest: Sling is now %v", sling)
+	log.Debugf("Sling is now %v", sling)
 
 	return sling.Request()
+}
+
+// addHeaders recursively scans the input struct, looking for fields with the
+// "header" tag; if the structs contains embedded structs, the function is called
+// recursively.
+func addHeaders(sling *sling.Sling, input interface{}) {
+	log.Debugf("looking for 'header' tags...")
+	for _, field := range structs.Fields(input) {
+		if field.IsEmbedded() {
+			log.Debugf("recursing to embedded struct..")
+			addHeaders(sling, field.Value())
+			log.Debugf("done recursive call")
+		} else {
+			tag := field.Tag("header")
+			if tag != "" {
+				value := field.Value().(string)
+				log.Debugf("adding header %q => %v", tag, value)
+				sling.Add(tag, value)
+			}
+		}
+	}
 }
 
 // HandleResponse parses the HTTP response to an API call and populates the
@@ -128,18 +143,18 @@ func (api *API) HandleResponse(response *http.Response, output interface{}) (*Re
 	// read the response data into a buffer
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		log.Errorf("API.HandleResponse: error reading response raw data: %v", err)
+		log.Errorf("error reading response raw data: %v", err)
 		return nil, err
 	}
 	if len(data) > 0 {
-		log.Debugf("API.HandleResponse: the response payload is:\n%s\n", string(data))
+		log.Debugf("the response payload is:\n%s\n", string(data))
 	} else {
-		log.Debugf("API.HandleResponse: no payload in response")
+		log.Debugf("no payload in response")
 	}
 
 	if output != nil {
 		if reflect.TypeOf(output).Elem().Kind() != reflect.Struct {
-			panic("API.HandleResponse: only structs can be passed as API output")
+			panic("only structs can be passed as API output")
 		}
 
 		// extract headers into the output struct and entity or error into the
@@ -147,7 +162,7 @@ func (api *API) HandleResponse(response *http.Response, output interface{}) (*Re
 		// `entity:"failure"` respectively)
 		t := reflect.TypeOf(output).Elem()
 		v := reflect.ValueOf(output).Elem()
-		//log.Debugf("API.HandleResponse: %T, %T, %d", t, v, v.Kind)
+		//log.Debugf("%T, %T, %d", t, v, v.Kind)
 		for i := 0; i < t.NumField(); i++ {
 			if tag := t.Field(i).Tag.Get("header"); tag != "" {
 				value := v.Field(i)
@@ -166,10 +181,10 @@ func (api *API) HandleResponse(response *http.Response, output interface{}) (*Re
 		if len(data) > 0 {
 			buffer := bytes.NewBuffer(data)
 			if err := json.NewDecoder(buffer).Decode(output); err != nil {
-				log.Errorf("Client.HandleResponse: error decoding response into entity: %v", err)
+				log.Errorf("error decoding response into entity: %v", err)
 				return NewResult(response, data), err
 			}
-			log.Debugf("API.HandleResponse: deserialised entity is:\n%s\n", log.ToJSON(output))
+			log.Debugf("deserialised entity is:\n%s\n", log.ToJSON(output))
 		}
 	}
 

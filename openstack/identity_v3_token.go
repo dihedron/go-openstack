@@ -85,16 +85,16 @@ func (api *IdentityV3API) CreateToken(opts interface{}) (*Token, *Result, error)
 	// extract the struct from the pointer
 	rv := reflect.ValueOf(opts)
 	for rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Interface {
-		log.Debugf("IdentityV3.CreateToken: %v -> %v", rv.Kind(), rv.Type())
+		log.Debugf("%v -> %v", rv.Kind(), rv.Type())
 		rv = rv.Elem()
 	}
-	log.Debugf("IdentityV3.CreateToken: %v -> %v", rv.Kind(), rv.Type())
+	log.Debugf("%v -> %v", rv.Kind(), rv.Type())
 	opts = rv.Interface()
 
 	authenticated := false
 	switch opts := opts.(type) {
 	case CreateTokenByPasswordOptions:
-		log.Debugf("IdentityV3.CreateToken: logging in by password")
+		log.Debugf("logging in by password")
 		input.NoCatalog = opts.NoCatalog
 		input.Auth = &Authentication{
 			Identity: &Identity{
@@ -118,7 +118,7 @@ func (api *IdentityV3API) CreateToken(opts interface{}) (*Token, *Result, error)
 		initCreateTokenOptionsScope(&opts.CreateTokenOptions)
 
 	case CreateTokenByTokenOptions:
-		log.Debugf("IdentityV3.CreateToken: logging in by token")
+		log.Debugf("logging in by token")
 
 		input.NoCatalog = opts.NoCatalog
 		input.Auth = &Authentication{
@@ -135,7 +135,7 @@ func (api *IdentityV3API) CreateToken(opts interface{}) (*Token, *Result, error)
 		initCreateTokenOptionsScope(&opts.CreateTokenOptions)
 
 	case CreateTokenByAppCredentialOptions:
-		log.Debugf("IdentityV3.CreateToken: logging in by app credential")
+		log.Debugf("logging in by app credential")
 
 		input.NoCatalog = opts.NoCatalog
 		input.Auth = &Authentication{
@@ -165,20 +165,20 @@ func (api *IdentityV3API) CreateToken(opts interface{}) (*Token, *Result, error)
 		initCreateTokenOptionsScope(&opts.CreateTokenOptions)
 
 	default:
-		log.Errorf("IdentityV3.CreateToken: unsupported input type: %T (%v)", opts, opts)
+		log.Errorf("unsupported input type: %T (%v)", opts, opts)
 	}
 
-	log.Debugf("IdentityV3.CreateToken: entity in request body is\n%s\n", log.ToJSON(input))
+	log.Debugf("entity in request body is\n%s\n", log.ToJSON(input))
 
 	output := &struct {
 		SubjectToken *string `header:"X-Subject-Token" json:"-"`
 		Token        *Token  `json:"token,omitempy"`
 	}{}
 
-	log.Debugf("IdentityV3.CreateToken: before invoking API")
+	log.Debugf("before invoking API")
 
 	result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", authenticated, input, output)
-	log.Debugf("IdentityV3.CreateToken: result is %v (%v)", result, err)
+	log.Debugf("result is %v (%v)", result, err)
 	if output.SubjectToken != nil {
 		output.Token.Value = output.SubjectToken
 		return output.Token, result, err
@@ -273,13 +273,13 @@ func (api *IdentityV3API) ReadToken(opts *ReadTokenOpts) (*Token, *Result, error
 	}{}
 
 	result, err := api.Invoke(http.MethodGet, "./v3/auth/tokens", true, opts, output)
-	log.Debugf("IdentityV3.ReadToken: result is %v (%v)", result, err)
+	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		output.Token.Value = output.SubjectToken
 		return output.Token, result, err
 	}
 
-	log.Debugf("IdentityV3.ReadToken: header is %s\n", *output.SubjectToken)
+	log.Debugf("header is %s\n", *output.SubjectToken)
 
 	return nil, result, err
 }
@@ -300,7 +300,7 @@ type CheckTokenOpts struct {
 // token.
 func (api *IdentityV3API) CheckToken(opts *CheckTokenOpts) (bool, *Result, error) {
 	result, err := api.Invoke(http.MethodHead, "./v3/auth/tokens", true, opts, nil)
-	log.Debugf("IdentityV3.CheckToken: result is %v (%v)", result, err)
+	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 || result.Code == 204 {
 		return true, result, err
 	}
@@ -322,7 +322,7 @@ type DeleteTokenOpts struct {
 // this API requires a valid admin token.
 func (api *IdentityV3API) DeleteToken(opts *DeleteTokenOpts) (bool, *Result, error) {
 	result, err := api.Invoke(http.MethodDelete, "./v3/auth/tokens", true, opts, nil)
-	log.Debugf("IdentityV3.DeleteToken: result is %v (%v)", result, err)
+	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 || result.Code == 204 {
 		return true, result, err
 	}
@@ -343,7 +343,7 @@ func (api *IdentityV3API) ReadCatalog() (*[]Service, *Result, error) {
 	}{}
 
 	result, err := api.Invoke(http.MethodGet, "./v3/auth/catalog", true, nil, output)
-	log.Debugf("IdentityV3.ReadCatalog: result is %v (%v)", result, err)
+	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.Catalog, result, err
 	}
@@ -364,7 +364,7 @@ func (api *IdentityV3API) ReadProjects() (*[]Project, *Result, error) {
 	}{}
 
 	result, err := api.Invoke(http.MethodGet, "./v3/auth/projects", true, nil, output)
-	log.Debugf("IdentityV3.ReadProjects: result is %v (%v)", result, err)
+	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.Projects, result, err
 	}
@@ -385,7 +385,7 @@ func (api *IdentityV3API) ReadDomains() (*[]Domain, *Result, error) {
 	}{}
 
 	result, err := api.Invoke(http.MethodGet, "./v3/auth/domains", true, nil, output)
-	log.Debugf("IdentityV3.ReadDomains: result is %v (%v)", result, err)
+	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.Domains, result, err
 	}
@@ -405,7 +405,7 @@ func (api *IdentityV3API) ReadSystems() (*[]System, *Result, error) {
 	}{}
 
 	result, err := api.Invoke(http.MethodGet, "./v3/auth/system", true, nil, output)
-	log.Debugf("IdentityV3.ReadSystems: result is %v (%v)", result, err)
+	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.Systems, result, err
 	}

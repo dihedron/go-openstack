@@ -7,11 +7,8 @@ package main
 import (
 	"os"
 
-	"github.com/fatih/structs"
-
 	"github.com/dihedron/go-log/log"
 	"github.com/dihedron/go-openstack/openstack"
-	"github.com/dihedron/go-openstack/reflector"
 )
 
 // https://developer.openstack.org/sdks/python/openstacksdk/users/profile.html#openstack.profile.Profile
@@ -43,17 +40,12 @@ func main() {
 		ScopeDomainName:  openstack.String("Default"),
 	}
 
-	fields := structs.Fields(opts1)
-	for _, field := range fields {
-		log.Debugf("field: %v => %v (%v)", field.Name(), field.Value(), field.Tag("header"))
-	}
+	// os.Exit(0)
 
 	client := openstack.NewDefaultClient(endpoint)
 	client.LoadProfileFrom("./my-profile.json")
 	client.Connect(opts1)
-	defer client.Close()
-
-	//os.Exit(0)
+	//defer client.Close()
 
 	//time.Sleep(10 * time.Second)
 
@@ -73,20 +65,35 @@ func main() {
 		UserPassword:   openstack.String("password"),
 	}
 
-	for _, field := range reflector.GetFields(opts2) {
-		log.Warnf("main: field: %v (%T)", field, field)
-	}
-	log.Warnf("main: ----------------------------------------------")
-	for _, field := range reflector.GetFields(*opts2) {
-		log.Warnf("main: field: %v (%T)", field, field)
-	}
+	// log.Debugf("----------------------------------------------")
+	// fields := structs.Fields(opts2)
+	// for _, field := range fields {
+	// 	switch value := field.Value().(type) {
+	// 	case *string:
+	// 		if value != nil {
+	// 			log.Debugf("field: '%v' => value '%v' (%T), header '%v'", field.Name(), *value, field.Value(), field.Tag("header"))
+	// 		} else {
+	// 			log.Debugf("field: '%v' => value '%v' (%T), header '%v'", field.Name(), "<nil>", field.Value(), field.Tag("header"))
+	// 		}
+
+	// 	case *bool:
+	// 		if value != nil {
+	// 			log.Debugf("field: '%v' => value '%t' (%T), header '%v'", field.Name(), *value, field.Value(), field.Tag("header"))
+	// 		} else {
+	// 			log.Debugf("field: '%v' => value '%v' (%T), header '%v'", field.Name(), "<nil>", field.Value(), field.Tag("header"))
+	// 		}
+	// 	default:
+	// 		log.Debugf("field: '%v' => value '%v' (%T), header '%v'", field.Name(), value, field.Value(), field.Tag("header"))
+	// 	}
+	// }
+	// log.Debugf("----------------------------------------------")
 
 	token, result, err := client.IdentityV3().CreateToken(opts2)
-	log.Debugf("main: token is %q\n", *token.Value)
-	log.Debugf("main: token is\n%s\n", log.ToJSON(token))
-	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	log.Debugf("token is %q\n", *token.Value)
+	log.Debugf("token is\n%s\n", log.ToJSON(token))
+	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
-		log.Debugf("main: call resulted in %v\n", err)
+		log.Debugf("call resulted in %v\n", err)
 	}
 
 	log.Debugf("+-------------------------------------------------------------------+")
@@ -99,11 +106,11 @@ func main() {
 		SubjectToken: *token.Value,
 	}
 	token, result, err = client.IdentityV3().ReadToken(opts3)
-	log.Debugf("main: token is %q\n", *token.Value)
-	log.Debugf("main: token is\n%s\n", log.ToJSON(token))
-	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	log.Debugf("token is %q\n", *token.Value)
+	log.Debugf("token is\n%s\n", log.ToJSON(token))
+	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
-		log.Debugf("main: call resulted in %v\n", err)
+		log.Debugf("call resulted in %v\n", err)
 	}
 
 	log.Debugf("+-------------------------------------------------------------------+")
@@ -115,10 +122,10 @@ func main() {
 		SubjectToken: *token.Value,
 	}
 	ok, result, err := client.IdentityV3().CheckToken(opts4)
-	log.Debugf("main: token valid: %t\n", ok)
-	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	log.Debugf("token valid: %t\n", ok)
+	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
-		log.Debugf("main: call resulted in %v\n", err)
+		log.Debugf("call resulted in %v\n", err)
 	}
 
 	log.Debugf("+-------------------------------------------------------------------+")
@@ -126,10 +133,10 @@ func main() {
 	log.Debugf("+-------------------------------------------------------------------+")
 
 	catalog, result, err := client.IdentityV3().ReadCatalog()
-	log.Debugf("main: catalog is:\n%s\n", log.ToJSON(catalog))
-	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	log.Debugf("catalog is:\n%s\n", log.ToJSON(catalog))
+	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
-		log.Debugf("main: call resulted in %v\n", err)
+		log.Debugf("call resulted in %v\n", err)
 	}
 
 	log.Debugf("+-------------------------------------------------------------------+")
@@ -137,10 +144,10 @@ func main() {
 	log.Debugf("+-------------------------------------------------------------------+")
 
 	projects, result, err := client.IdentityV3().ReadProjects()
-	log.Debugf("main: projects are:\n%s\n", log.ToJSON(projects))
-	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	log.Debugf("projects are:\n%s\n", log.ToJSON(projects))
+	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
-		log.Debugf("main: call resulted in %v\n", err)
+		log.Debugf("call resulted in %v\n", err)
 	}
 
 	log.Debugf("+-------------------------------------------------------------------+")
@@ -148,10 +155,10 @@ func main() {
 	log.Debugf("+-------------------------------------------------------------------+")
 
 	domains, result, err := client.IdentityV3().ReadDomains()
-	log.Debugf("main: domains are:\n%s\n", log.ToJSON(domains))
-	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	log.Debugf("domains are:\n%s\n", log.ToJSON(domains))
+	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
-		log.Debugf("main: call resulted in %v\n", err)
+		log.Debugf("call resulted in %v\n", err)
 	}
 
 	// log.Debugf("+-------------------------------------------------------------------+")
@@ -159,10 +166,10 @@ func main() {
 	// log.Debugf("+-------------------------------------------------------------------+")
 
 	// systems, result, err := client.IdentityV3().ReadSystems()
-	// log.Debugf("main: systems are:\n%s\n", log.ToJSON(systems))
-	// log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	// log.Debugf("systems are:\n%s\n", log.ToJSON(systems))
+	// log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	// if err != nil {
-	// 	log.Debugf("main: call resulted in %v\n", err)
+	// 	log.Debugf("call resulted in %v\n", err)
 	// }
 
 	log.Debugf("+-------------------------------------------------------------------+")
@@ -173,10 +180,10 @@ func main() {
 		SubjectToken: *token.Value,
 	}
 	ok, result, err = client.IdentityV3().DeleteToken(opts5)
-	log.Debugf("main: token valid: %t\n", ok)
-	log.Debugf("main: result is %d (%s)\n", result.Code, result.Status)
+	log.Debugf("token valid: %t\n", ok)
+	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
-		log.Debugf("main: call resulted in %v\n", err)
+		log.Debugf("call resulted in %v\n", err)
 	}
 
 	//client.Rea
@@ -190,7 +197,7 @@ func main() {
 	// 	SubjectToken: *client.Authenticator.TokenValue,
 	// }
 	// if ok, _, _ := client.Identity.ReadToken(rops); ok {
-	// 	log.Debug("main: token read")
+	// 	log.Debug("token read")
 	// }
 
 	// client.Authenticator.Login(opts)
@@ -219,7 +226,7 @@ func main() {
 	// 	*/
 	// }
 	// token, header, _, _ := client.Identity.CreateToken(copts)
-	// log.Debugf("main: token: %s\ntoken info:\n%s\n", header, log.ToJSON(token))
+	// log.Debugf("token: %s\ntoken info:\n%s\n", header, log.ToJSON(token))
 
 	// log.Debugf("-----------------------------------------------------\n")
 
