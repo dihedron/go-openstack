@@ -35,98 +35,85 @@ func TestCreateTokenParam(t *testing.T) {
 		t.FailNow()
 	}
 
-	tests := map[string]*CreateTokenOpts{
-		"UserNameUserDomainPasswordImplicitlyUnscopedCatalog": &CreateTokenOpts{
-			Method:         "password",
+	tests := map[string]*CreateTokenOptions{
+		"UserNameUserDomainPasswordImplicitlyUnscopedCatalog": &CreateTokenOptions{
 			UserName:       String("admin"),
 			UserDomainName: String("Default"),
 			UserPassword:   String("password"),
 		},
-		"UserNameUserDomainPasswordExplicitlyUnscopedCatalog": &CreateTokenOpts{
-			Method:         "password",
+		"UserNameUserDomainPasswordExplicitlyUnscopedCatalog": &CreateTokenOptions{
 			UserName:       String("admin"),
 			UserDomainName: String("Default"),
 			UserPassword:   String("password"),
 			UnscopedToken:  Bool(true),
 		},
-		"UserNameUserDomainPasswordScopedDomainIDCatalog": &CreateTokenOpts{
-			Method:         "password",
+		"UserNameUserDomainPasswordScopedDomainIDCatalog": &CreateTokenOptions{
 			UserName:       String("admin"),
 			UserDomainName: String("Default"),
 			UserPassword:   String("password"),
 			ScopeDomainID:  String("default"),
 		},
-		"UserNameUserDomainPasswordScopedDomainNameCatalog": &CreateTokenOpts{
-			Method:          "password",
+		"UserNameUserDomainPasswordScopedDomainNameCatalog": &CreateTokenOptions{
 			UserName:        String("admin"),
 			UserDomainName:  String("Default"),
 			UserPassword:    String("password"),
 			ScopeDomainName: String("Default"),
 		},
-		"UserNameUserDomainPasswordScopedProjectIDCatalog": &CreateTokenOpts{
-			Method:         "password",
+		"UserNameUserDomainPasswordScopedProjectIDCatalog": &CreateTokenOptions{
 			UserName:       String("admin"),
 			UserDomainName: String("Default"),
 			UserPassword:   String("password"),
 			ScopeProjectID: String("b5ca4b54c504463291d138f0c24e1a20"),
 		},
-		"UserNameUserDomainPasswordScopedProjectNameDomainNameCatalog": &CreateTokenOpts{
-			Method:           "password",
+		"UserNameUserDomainPasswordScopedProjectNameDomainNameCatalog": &CreateTokenOptions{
 			UserName:         String("admin"),
 			UserDomainName:   String("Default"),
 			UserPassword:     String("password"),
 			ScopeProjectName: String("admin"),
 			ScopeDomainName:  String("Default"),
 		},
-		"UserNameUserDomainPasswordScopedProjectNameDomainIDCatalog": &CreateTokenOpts{
-			Method:           "password",
+		"UserNameUserDomainPasswordScopedProjectNameDomainIDCatalog": &CreateTokenOptions{
 			UserName:         String("admin"),
 			UserDomainName:   String("Default"),
 			UserPassword:     String("password"),
 			ScopeProjectName: String("admin"),
 			ScopeDomainID:    String("default"),
 		},
-		"UserNameUserDomainPasswordImplicitlyUnscopedNoCatalog": &CreateTokenOpts{
-			Method:         "password",
+		"UserNameUserDomainPasswordImplicitlyUnscopedNoCatalog": &CreateTokenOptions{
 			UserName:       String("admin"),
 			UserDomainName: String("Default"),
 			UserPassword:   String("password"),
 			NoCatalog:      true,
 		},
-		"UserNameUserDomainPasswordExplicitlyUnscopedNoCatalog": &CreateTokenOpts{
-			Method:         "password",
+		"UserNameUserDomainPasswordExplicitlyUnscopedNoCatalog": &CreateTokenOptions{
 			UserName:       String("admin"),
 			UserDomainName: String("Default"),
 			UserPassword:   String("password"),
 			UnscopedToken:  Bool(true),
 			NoCatalog:      true,
 		},
-		"UserNameUserDomainPasswordScopedDomainIDNoCatalog": &CreateTokenOpts{
-			Method:         "password",
+		"UserNameUserDomainPasswordScopedDomainIDNoCatalog": &CreateTokenOptions{
 			UserName:       String("admin"),
 			UserDomainName: String("Default"),
 			UserPassword:   String("password"),
 			ScopeDomainID:  String("default"),
 			NoCatalog:      true,
 		},
-		"UserNameUserDomainPasswordScopedDomainNameNoCatalog": &CreateTokenOpts{
-			Method:          "password",
+		"UserNameUserDomainPasswordScopedDomainNameNoCatalog": &CreateTokenOptions{
 			UserName:        String("admin"),
 			UserDomainName:  String("Default"),
 			UserPassword:    String("password"),
 			ScopeDomainName: String("Default"),
 			NoCatalog:       true,
 		},
-		"UserNameUserDomainPasswordScopedProjectIDNoCatalog": &CreateTokenOpts{
-			Method:         "password",
+		"UserNameUserDomainPasswordScopedProjectIDNoCatalog": &CreateTokenOptions{
 			UserName:       String("admin"),
 			UserDomainName: String("Default"),
 			UserPassword:   String("password"),
 			ScopeProjectID: String("b5ca4b54c504463291d138f0c24e1a20"),
 			NoCatalog:      true,
 		},
-		"UserNameUserDomainPasswordScopedProjectNameDomainNameNoCatalog": &CreateTokenOpts{
-			Method:           "password",
+		"UserNameUserDomainPasswordScopedProjectNameDomainNameNoCatalog": &CreateTokenOptions{
 			UserName:         String("admin"),
 			UserDomainName:   String("Default"),
 			UserPassword:     String("password"),
@@ -134,8 +121,7 @@ func TestCreateTokenParam(t *testing.T) {
 			ScopeDomainName:  String("Default"),
 			NoCatalog:        true,
 		},
-		"UserNameUserDomainPasswordScopedProjectNameDomainIDNoCatalog": &CreateTokenOpts{
-			Method:           "password",
+		"UserNameUserDomainPasswordScopedProjectNameDomainIDNoCatalog": &CreateTokenOptions{
 			UserName:         String("admin"),
 			UserDomainName:   String("Default"),
 			UserPassword:     String("password"),

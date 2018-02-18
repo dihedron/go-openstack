@@ -55,6 +55,8 @@ func (api *API) Invoke(method string, url string, authenticated bool, input inte
 		return nil, err
 	}
 
+	log.Debugf("request: %v", request)
+
 	response, err := api.client.HTTPClient.Do(request)
 	if err != nil {
 		log.Errorf("error sending request: %v", err)
@@ -96,6 +98,8 @@ func (api *API) PrepareRequest(method string, url string, authenticated bool, in
 		if reflect.TypeOf(input).Elem().Kind() != reflect.Struct {
 			panic("only structs can be passed as API input")
 		}
+
+		log.Debugf("adding headers & query parameters from\n%s\n", log.ToJSON(input))
 
 		// add query parameters
 		sling.QueryStruct(input)

@@ -17,7 +17,7 @@ package openstack
 // role assignments they have on that project, and then stores the application
 // credential identifier and secret in the config file.
 type AppCredential struct {
-	ID     *string `json:"id, omitempty"`
+	ID     *string `json:"id,omitempty"`
 	Name   *string `json:"name,omitempty"`
 	Secret *string `json:"secret,imotempty"`
 	User   *User   `json:"user,omitempty"`

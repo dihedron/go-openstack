@@ -3,7 +3,6 @@ package openstack
 import (
 	"net/http"
 	"os"
-	"reflect"
 	"strings"
 
 	"github.com/dihedron/go-log/log"
@@ -16,51 +15,25 @@ type IdentityV3API struct {
 	API
 }
 
-// CreateTokenOptions contains the common set of parameters and options used to
-// perform an authentication (create an authentication token) on Keystone; it is
-// not supposed to be used directly, but rather embedded by more specificy
-// authentication option structures.
+// CreateTokenOptions provides all the options for password-based, token-based
+// and app-credentials-based logon, both scoped  and unscoped, with and without
+// the associated catalog of available services.
 type CreateTokenOptions struct {
-	NoCatalog        bool `url:"nocatalog,omitempty"`
-	Authenticated    bool
+	TokenID          *string
+	UserID           *string
+	UserName         *string
+	UserDomainID     *string
+	UserDomainName   *string
+	UserPassword     *string
+	Secret           *string
+	AppCredentialID  *string
 	ScopeProjectID   *string
 	ScopeProjectName *string
 	ScopeDomainID    *string
 	ScopeDomainName  *string
 	UnscopedToken    *bool
-}
-
-// CreateTokenByPasswordOptions embeds the CreateTokenOptions common parameters
-// and provides some more specific ones for password-based authentication.
-type CreateTokenByPasswordOptions struct {
-	UserID         *string
-	UserName       *string
-	UserDomainID   *string
-	UserDomainName *string
-	UserPassword   *string
-	CreateTokenOptions
-}
-
-// CreateTokenByTokenOptions embeds the CreateTokenOptions common parameters and
-// provides a way to specify more specific ones for authentication based on a
-// pre-existing, unscoped token.
-type CreateTokenByTokenOptions struct {
-	TokenID *string
-	CreateTokenOptions
-}
-
-// CreateTokenByAppCredentialOptions embeds the CreateTokenOptions common
-// parameters and provides some more specific ones for authentication based on
-// application credentials provided to an application that will act on behalf of
-// a user.
-type CreateTokenByAppCredentialOptions struct {
-	Secret          *string
-	AppCredentialID *string
-	UserID          *string
-	UserName        *string
-	UserDomainID    *string
-	UserDomainName  *string
-	CreateTokenOptions
+	NoCatalog        bool `url:"nocatalog,omitempty"`
+	Authenticated    bool
 }
 
 /*
@@ -75,27 +48,17 @@ type CreateTokenByAppCredentialOptions struct {
 // used to authenticate applications to the platform as if it were interacting on
 // behalf of a user and authorising it to a  subset of the user's resources
 // without sharing the user's credentials).
-func (api *IdentityV3API) CreateToken(opts interface{}) (*Token, *Result, error) {
+func (api *IdentityV3API) CreateToken(opts *CreateTokenOptions) (*Token, *Result, error) {
 
 	input := &struct {
 		NoCatalog bool            `url:"nocatalog,omitempty" json:"-"`
 		Auth      *Authentication `json:"auth,omitempty"`
 	}{}
 
-	// extract the struct from the pointer
-	rv := reflect.ValueOf(opts)
-	for rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Interface {
-		log.Debugf("%v -> %v", rv.Kind(), rv.Type())
-		rv = rv.Elem()
-	}
-	log.Debugf("%v -> %v", rv.Kind(), rv.Type())
-	opts = rv.Interface()
+	input.NoCatalog = opts.NoCatalog
 
-	authenticated := false
-	switch opts := opts.(type) {
-	case CreateTokenByPasswordOptions:
+	if opts.UserPassword != nil && len(*opts.UserPassword) > 0 {
 		log.Debugf("logging in by password")
-		input.NoCatalog = opts.NoCatalog
 		input.Auth = &Authentication{
 			Identity: &Identity{
 				Methods: &[]string{
@@ -114,13 +77,8 @@ func (api *IdentityV3API) CreateToken(opts interface{}) (*Token, *Result, error)
 				},
 			},
 		}
-		authenticated = opts.Authenticated
-		initCreateTokenOptionsScope(&opts.CreateTokenOptions)
-
-	case CreateTokenByTokenOptions:
+	} else if opts.TokenID != nil && len(*opts.TokenID) > 0 {
 		log.Debugf("logging in by token")
-
-		input.NoCatalog = opts.NoCatalog
 		input.Auth = &Authentication{
 			Identity: &Identity{
 				Methods: &[]string{
@@ -131,12 +89,8 @@ func (api *IdentityV3API) CreateToken(opts interface{}) (*Token, *Result, error)
 				},
 			},
 		}
-		authenticated = opts.Authenticated
-		initCreateTokenOptionsScope(&opts.CreateTokenOptions)
-
-	case CreateTokenByAppCredentialOptions:
+	} else if opts.AppCredentialID != nil && len(*opts.AppCredentialID) > 0 {
 		log.Debugf("logging in by app credential")
-
 		input.NoCatalog = opts.NoCatalog
 		input.Auth = &Authentication{
 			Identity: &Identity{
@@ -156,17 +110,9 @@ func (api *IdentityV3API) CreateToken(opts interface{}) (*Token, *Result, error)
 				},
 			},
 		}
-		if opts.AppCredentialID != nil && len(strings.TrimSpace(*opts.AppCredentialID)) > 0 {
-			input.Auth.Identity.AppCredential = &AppCredential{
-				ID: opts.AppCredentialID,
-			}
-		}
-		authenticated = opts.Authenticated
-		initCreateTokenOptionsScope(&opts.CreateTokenOptions)
-
-	default:
-		log.Errorf("unsupported input type: %T (%v)", opts, opts)
 	}
+
+	initCreateTokenOptionsScope(opts)
 
 	log.Debugf("entity in request body is\n%s\n", log.ToJSON(input))
 
@@ -177,7 +123,7 @@ func (api *IdentityV3API) CreateToken(opts interface{}) (*Token, *Result, error)
 
 	log.Debugf("before invoking API")
 
-	result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", authenticated, input, output)
+	result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", opts.Authenticated, input, output)
 	log.Debugf("result is %v (%v)", result, err)
 	if output.SubjectToken != nil {
 		output.Token.Value = output.SubjectToken
@@ -235,7 +181,7 @@ func initCreateTokenOptionsScope(opts *CreateTokenOptions) interface{} {
 // CreateTokenFromEnv uses the information in the environment to authenticate the
 // client to the Keystore server and receive a token.
 func (api *IdentityV3API) CreateTokenFromEnv() (*Token, *Result, error) {
-	opts := &CreateTokenByPasswordOptions{
+	opts := &CreateTokenOptions{
 		UserName:       String(os.Getenv("OS_USERNAME")),
 		UserPassword:   String(os.Getenv("OS_PASSWORD")),
 		UserDomainName: String(os.Getenv("OS_USER_DOMAIN_NAME")),

@@ -40,12 +40,10 @@ func main() {
 		ScopeDomainName:  openstack.String("Default"),
 	}
 
-	// os.Exit(0)
-
 	client := openstack.NewDefaultClient(endpoint)
-	client.LoadProfileFrom("./my-profile.json")
+	//client.LoadProfileFrom("./my-profile.json")
 	client.Connect(opts1)
-	//defer client.Close()
+	defer client.Close()
 
 	//time.Sleep(10 * time.Second)
 
@@ -53,40 +51,15 @@ func main() {
 	log.Debugf("|                         CREATE TOKEN                              |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	opts2 := &openstack.CreateTokenByPasswordOptions{
-		CreateTokenOptions: openstack.CreateTokenOptions{
-			NoCatalog:        true,
-			Authenticated:    true,
-			ScopeProjectName: openstack.String("admin"),
-			ScopeDomainName:  openstack.String("Default"),
-		},
-		UserName:       openstack.String("admin"),
-		UserDomainName: openstack.String("Default"),
-		UserPassword:   openstack.String("password"),
+	opts2 := &openstack.CreateTokenOptions{
+		NoCatalog:        false,
+		Authenticated:    true,
+		ScopeProjectName: openstack.String("admin"),
+		ScopeDomainName:  openstack.String("Default"),
+		UserName:         openstack.String("admin"),
+		UserDomainName:   openstack.String("Default"),
+		UserPassword:     openstack.String("password"),
 	}
-
-	// log.Debugf("----------------------------------------------")
-	// fields := structs.Fields(opts2)
-	// for _, field := range fields {
-	// 	switch value := field.Value().(type) {
-	// 	case *string:
-	// 		if value != nil {
-	// 			log.Debugf("field: '%v' => value '%v' (%T), header '%v'", field.Name(), *value, field.Value(), field.Tag("header"))
-	// 		} else {
-	// 			log.Debugf("field: '%v' => value '%v' (%T), header '%v'", field.Name(), "<nil>", field.Value(), field.Tag("header"))
-	// 		}
-
-	// 	case *bool:
-	// 		if value != nil {
-	// 			log.Debugf("field: '%v' => value '%t' (%T), header '%v'", field.Name(), *value, field.Value(), field.Tag("header"))
-	// 		} else {
-	// 			log.Debugf("field: '%v' => value '%v' (%T), header '%v'", field.Name(), "<nil>", field.Value(), field.Tag("header"))
-	// 		}
-	// 	default:
-	// 		log.Debugf("field: '%v' => value '%v' (%T), header '%v'", field.Name(), value, field.Value(), field.Tag("header"))
-	// 	}
-	// }
-	// log.Debugf("----------------------------------------------")
 
 	token, result, err := client.IdentityV3().CreateToken(opts2)
 	log.Debugf("token is %q\n", *token.Value)

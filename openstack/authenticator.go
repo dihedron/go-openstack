@@ -57,8 +57,8 @@ type Authenticator struct {
 type LoginOptions struct {
 	// UserName, UserDomainID and UserDomainName are used for password- and
 	// application credential-based authentication.
-	UserName       *string `todo:"remove"`
-	UserDomainID   *string `todo:"remove"`
+	UserName       *string
+	UserDomainID   *string
 	UserDomainName *string
 
 	// ScopeProjectID, ScopeProjectName, ScopeDomainID, ScopeDomainName and
@@ -93,50 +93,46 @@ type LoginOptions struct {
 func (auth *Authenticator) Login(opts *LoginOptions) error {
 	var err error
 
-	var cto interface{}
+	log.Debugf("logging in")
+
+	var cto *CreateTokenOptions
 
 	if opts.TokenID != nil && len(strings.TrimSpace(*opts.TokenID)) > 0 {
-		cto = CreateTokenByTokenOptions{
-			CreateTokenOptions: CreateTokenOptions{
-				NoCatalog:        false,
-				ScopeProjectID:   opts.ScopeProjectID,
-				ScopeProjectName: opts.ScopeProjectName,
-				ScopeDomainID:    opts.ScopeDomainID,
-				ScopeDomainName:  opts.ScopeDomainName,
-				UnscopedToken:    opts.UnscopedLogin,
-			},
-			TokenID: opts.TokenID,
+		cto = &CreateTokenOptions{
+			NoCatalog:        false,
+			ScopeProjectID:   opts.ScopeProjectID,
+			ScopeProjectName: opts.ScopeProjectName,
+			ScopeDomainID:    opts.ScopeDomainID,
+			ScopeDomainName:  opts.ScopeDomainName,
+			UnscopedToken:    opts.UnscopedLogin,
+			TokenID:          opts.TokenID,
 		}
 		log.Debugf("performing token-based authentication (%s)", ZipString(*opts.TokenID, 10))
 	} else if opts.UserPassword != nil && len(strings.TrimSpace(*opts.UserPassword)) > 0 {
-		cto = CreateTokenByPasswordOptions{
-			CreateTokenOptions: CreateTokenOptions{
-				NoCatalog:        false,
-				ScopeProjectID:   opts.ScopeProjectID,
-				ScopeProjectName: opts.ScopeProjectName,
-				ScopeDomainID:    opts.ScopeDomainID,
-				ScopeDomainName:  opts.ScopeDomainName,
-				UnscopedToken:    opts.UnscopedLogin,
-			},
-			UserName:       opts.UserName,
-			UserDomainName: opts.UserDomainName,
-			UserPassword:   opts.UserPassword,
+		cto = &CreateTokenOptions{
+			NoCatalog:        false,
+			ScopeProjectID:   opts.ScopeProjectID,
+			ScopeProjectName: opts.ScopeProjectName,
+			ScopeDomainID:    opts.ScopeDomainID,
+			ScopeDomainName:  opts.ScopeDomainName,
+			UnscopedToken:    opts.UnscopedLogin,
+			UserName:         opts.UserName,
+			UserDomainName:   opts.UserDomainName,
+			UserPassword:     opts.UserPassword,
 		}
 		log.Debugf("performing password-based authentication (%s\\%s:%s)", *opts.UserDomainName, *opts.UserName, *opts.UserPassword)
 	} else if opts.AppCredentialID != nil && len(strings.TrimSpace(*opts.AppCredentialID)) > 0 && opts.Secret != nil && len(strings.TrimSpace(*opts.Secret)) > 0 {
-		cto = CreateTokenByAppCredentialOptions{
-			CreateTokenOptions: CreateTokenOptions{
-				NoCatalog:        false,
-				ScopeProjectID:   opts.ScopeProjectID,
-				ScopeProjectName: opts.ScopeProjectName,
-				ScopeDomainID:    opts.ScopeDomainID,
-				ScopeDomainName:  opts.ScopeDomainName,
-				UnscopedToken:    opts.UnscopedLogin,
-			},
-			UserName:        opts.UserName,
-			UserDomainName:  opts.UserDomainName,
-			AppCredentialID: opts.AppCredentialID,
-			Secret:          opts.Secret,
+		cto = &CreateTokenOptions{
+			NoCatalog:        false,
+			ScopeProjectID:   opts.ScopeProjectID,
+			ScopeProjectName: opts.ScopeProjectName,
+			ScopeDomainID:    opts.ScopeDomainID,
+			ScopeDomainName:  opts.ScopeDomainName,
+			UnscopedToken:    opts.UnscopedLogin,
+			UserName:         opts.UserName,
+			UserDomainName:   opts.UserDomainName,
+			AppCredentialID:  opts.AppCredentialID,
+			Secret:           opts.Secret,
 		}
 		log.Debugf("performing app-credential-based authentication (%s:%s)", *opts.AppCredentialID, *opts.Secret)
 	}
@@ -180,6 +176,36 @@ func (auth *Authenticator) Login(opts *LoginOptions) error {
 	// 	}
 	// }
 
+	log.Debugf("done logging in")
+	return nil
+}
+
+// Logout invalidates the current authentication token so that all succeding
+// API calls will fail as unauthorised.
+func (auth *Authenticator) Logout() error {
+	log.Debugf("logging out by invalidating authentication token")
+	token := auth.GetToken()
+	if token == nil {
+		log.Debugf("already logged out")
+		return nil
+	}
+	value := token.Value
+	if value != nil {
+		log.Debugf("invalidating authentication token %s", ZipString(*value, 16))
+		auth.mutex.Lock()
+		defer auth.mutex.Unlock()
+		if auth.timer != nil {
+			log.Debugf("stopping timer")
+			if !auth.timer.Stop() {
+				// drain the timer, as per the docs
+				<-auth.timer.C
+			}
+		}
+		// TODO: api.DeleteToken()
+		auth.token.Value = nil
+		auth.token = nil
+	}
+	log.Debugf("logged out")
 	return nil
 }
 
@@ -199,33 +225,6 @@ func (auth *Authenticator) GetCatalog() *[]Service {
 	defer auth.mutex.RUnlock()
 	if auth.token != nil {
 		return auth.token.Catalog
-	}
-	return nil
-}
-
-// Logout invalidates the current authentication token so that all succeding
-// API calls will fail as unauthorised.
-func (auth *Authenticator) Logout() error {
-	log.Debugf("logging out")
-	token := auth.GetToken()
-	if token == nil {
-		return nil
-	}
-	value := token.Value
-	if value != nil {
-		log.Debugf("invalidating authentication token %s", ZipString(*value, 16))
-		auth.mutex.Lock()
-		defer auth.mutex.Unlock()
-		if auth.timer != nil {
-			log.Debugf("stopping timer")
-			if !auth.timer.Stop() {
-				// drain the timer, as per the docs
-				<-auth.timer.C
-			}
-		}
-		// TODO: api.DeleteToken()
-		auth.token.Value = nil
-		auth.token = nil
 	}
 	return nil
 }

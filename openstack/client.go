@@ -139,7 +139,10 @@ func (c *Client) Connect(opts *LoginOptions) error {
 
 	if c.Authenticator.GetCatalog() == nil {
 		log.Warnf("no catalog info available (maybe it's an unscoped login?)")
-		//return fmt.Errorf("no catalog information available from identity service")
+
+		// add the identity service anyway, otherwise we may not be able to ever
+		// get access to the catalog
+		c.Services["identity"] = *(c.Authenticator.Identity)
 		return nil
 	}
 
