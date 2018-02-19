@@ -153,28 +153,22 @@ func (auth *Authenticator) Login(opts *LoginOptions) error {
 	auth.token = token
 
 	// TODO: re-enable
-	// if auth.token.ExpiresAt != nil {
-	// 	log.Debugf("setting timer for token refresh")
-	// 	if expiryDate, err := time.Parse(ISO8601, *auth.token.ExpiresAt); err == nil {
-	// 		when := expiryDate.Sub(time.Now().Add(30 * time.Second))
-	// 		log.Debugf("timer will fire in %v", when)
-	// 		//auth.tokenTimer = time.NewTimer(when)
-	//if timer != nil do this, otherwise reset it afteer draining
-	// 		auth.timer = time.NewTimer(5 * time.Second)
-	// 		lo := &LoginOpts{
-	// 			TokenID:          auth.tokenValue,
-	// 			ScopeProjectName: opts.ScopeDomainName,
-	// 			ScopeDomainName:  opts.ScopeDomainName,
-	// 			UnscopedLogin:    opts.UnscopedLogin,
-	// 		}
-	// 		go func(opts LoginOpts) {
-	// 			<-auth.timer.C
-	// 			auth.Login(&opts)
-	// 		}(*lo)
-	// 	} else {
-	// 		log.Errorf("error parsing date: %v", err)
-	// 	}
-	// }
+	if auth.token.ExpiresAt != nil {
+		log.Debugf("setting timer for token refresh")
+		if expiryDate, err := time.Parse(ISO8601, *auth.token.ExpiresAt); err == nil {
+			when := expiryDate.Sub(time.Now().Add(5 * time.Second))
+			log.Debugf("re-authentication timer will fire in %v", when)
+			auth.timer = time.NewTimer(5 * time.Second)
+			go func(lo *LoginOptions) {
+				log.Debugf("starting re-authentication timer...")
+				<-auth.timer.C
+				log.Debugf("re-authentication timer logging in again...")
+				auth.Login(lo)
+			}(opts)
+		} else {
+			log.Errorf("error parsing date: %v", err)
+		}
+	}
 
 	log.Debugf("done logging in")
 	return nil
@@ -201,7 +195,12 @@ func (auth *Authenticator) Logout() error {
 				<-auth.timer.C
 			}
 		}
-		// TODO: api.DeleteToken()
+		if auth.GetToken().Value != nil {
+			opts := &DeleteTokenOptions{
+				SubjectToken: *(auth.GetToken().Value),
+			}
+			auth.Identity.DeleteToken(opts)
+		}
 		auth.token.Value = nil
 		auth.token = nil
 	}

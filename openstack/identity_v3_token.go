@@ -32,7 +32,7 @@ type CreateTokenOptions struct {
 	ScopeDomainID    *string
 	ScopeDomainName  *string
 	UnscopedToken    *bool
-	NoCatalog        bool `url:"nocatalog,omitempty"`
+	NoCatalog        bool //`url:"nocatalog,omitempty"`
 	Authenticated    bool
 }
 
@@ -52,7 +52,7 @@ func (api *IdentityV3API) CreateToken(opts *CreateTokenOptions) (*Token, *Result
 
 	input := &struct {
 		NoCatalog bool            `url:"nocatalog,omitempty" json:"-"`
-		Auth      *Authentication `json:"auth,omitempty"`
+		Auth      *Authentication `url:"-" json:"auth,omitempty"`
 	}{}
 
 	input.NoCatalog = opts.NoCatalog
@@ -117,8 +117,8 @@ func (api *IdentityV3API) CreateToken(opts *CreateTokenOptions) (*Token, *Result
 	log.Debugf("entity in request body is\n%s\n", log.ToJSON(input))
 
 	output := &struct {
-		SubjectToken *string `header:"X-Subject-Token" json:"-"`
-		Token        *Token  `json:"token,omitempy"`
+		SubjectToken *string `url:"-" header:"X-Subject-Token" json:"-"`
+		Token        *Token  `url:"-" json:"token,omitempy"`
 	}{}
 
 	log.Debugf("before invoking API")
@@ -146,7 +146,6 @@ func initCreateTokenOptionsScope(opts *CreateTokenOptions) interface{} {
 				Name: opts.ScopeProjectName,
 			},
 		}
-
 		if opts.ScopeDomainID != nil && len(strings.TrimSpace(*opts.ScopeDomainID)) > 0 {
 			scope.Project.Domain = &Domain{
 				ID: opts.ScopeDomainID,
@@ -206,7 +205,7 @@ func (api *IdentityV3API) CreateTokenFromEnv() (*Token, *Result, error) {
 type ReadTokenOpts struct {
 	NoCatalog    bool   `url:"nocatalog,omitempty" json:"-"`
 	AllowExpired bool   `url:"allow_expired,omitempty" json:"-"`
-	SubjectToken string `header:"X-Subject-Token" json:"-"`
+	SubjectToken string `url:"-" header:"X-Subject-Token" json:"-"`
 }
 
 // ReadToken uses the provided parameters to read the given token and retrieve
@@ -238,7 +237,7 @@ func (api *IdentityV3API) ReadToken(opts *ReadTokenOpts) (*Token, *Result, error
 // validation of a token on the Identity server.
 type CheckTokenOpts struct {
 	AllowExpired bool   `url:"allow_expired,omitempty" json:"-"`
-	SubjectToken string `header:"X-Subject-Token" json:"-"`
+	SubjectToken string `url:"-" header:"X-Subject-Token" json:"-"`
 }
 
 // CheckToken uses the provided parameters to check the given token and retrieve
@@ -257,16 +256,16 @@ func (api *IdentityV3API) CheckToken(opts *CheckTokenOpts) (bool, *Result, error
  * DELETE TOKEN
  */
 
-// DeleteTokenOpts contains the set of parameters and options used to perform the
-// deletion of a token on the Identity server.
-type DeleteTokenOpts struct {
-	SubjectToken string `header:"X-Subject-Token" json:"-"`
+// DeleteTokenOptions contains the set of parameters and options used to perform
+// the deletion of a token on the Identity server.
+type DeleteTokenOptions struct {
+	SubjectToken string `url:"-" header:"X-Subject-Token" json:"-"`
 }
 
 // DeleteToken uses the provided parameters to delete the given token; the token
 // is immediately invalid regardless of the value in the expires_at attribute;
 // this API requires a valid admin token.
-func (api *IdentityV3API) DeleteToken(opts *DeleteTokenOpts) (bool, *Result, error) {
+func (api *IdentityV3API) DeleteToken(opts *DeleteTokenOptions) (bool, *Result, error) {
 	result, err := api.Invoke(http.MethodDelete, "./v3/auth/tokens", true, opts, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 || result.Code == 204 {

@@ -6,6 +6,7 @@ package main
 
 import (
 	"os"
+	"time"
 
 	"github.com/dihedron/go-log/log"
 	"github.com/dihedron/go-openstack/openstack"
@@ -135,6 +136,8 @@ func main() {
 		log.Debugf("call resulted in %v\n", err)
 	}
 
+	time.Sleep(10 * time.Second)
+
 	// log.Debugf("+-------------------------------------------------------------------+")
 	// log.Debugf("|                          GET SYSTEMS                              |")
 	// log.Debugf("+-------------------------------------------------------------------+")
@@ -150,7 +153,7 @@ func main() {
 	log.Debugf("|                          DELETE TOKEN                             |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	opts5 := &openstack.DeleteTokenOpts{
+	opts5 := &openstack.DeleteTokenOptions{
 		SubjectToken: *token.Value,
 	}
 	ok, result, err = client.IdentityV3().DeleteToken(opts5)
