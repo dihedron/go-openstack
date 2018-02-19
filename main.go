@@ -6,7 +6,6 @@ package main
 
 import (
 	"os"
-	"time"
 
 	"github.com/dihedron/go-log/log"
 	"github.com/dihedron/go-openstack/openstack"
@@ -136,7 +135,7 @@ func main() {
 		log.Debugf("call resulted in %v\n", err)
 	}
 
-	time.Sleep(10 * time.Second)
+	//time.Sleep(10 * time.Second)
 
 	// log.Debugf("+-------------------------------------------------------------------+")
 	// log.Debugf("|                          GET SYSTEMS                              |")

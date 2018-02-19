@@ -39,7 +39,7 @@ type Authenticator struct {
 	// check for expiration.
 	token *Token
 
-	// tokenMutex guards TokenValue and TokenInfo against concurrent read and write
+	// mutex guards the Token info and value against concurrent read and write
 	// accesses, e.g. when a token is being reissued by the background goroutine.
 	mutex sync.RWMutex
 
@@ -55,8 +55,9 @@ type Authenticator struct {
 // some defaults and is used when invoking the IdentityV3API's CreateToken method;
 // it can be filled with values taken from the process enviroment.
 type LoginOptions struct {
-	// UserName, UserDomainID and UserDomainName are used for password- and
-	// application credential-based authentication.
+	// UserID, UserName, UserDomainID and UserDomainName are used for password-
+	// and application credential-based authentication.
+	UserID         *string
 	UserName       *string
 	UserDomainID   *string
 	UserDomainName *string
@@ -79,7 +80,8 @@ type LoginOptions struct {
 	// happens is to reissue a token that is about to expire.
 	TokenID *string
 
-	//
+	// AppCredentialID and Secret are used, in conjunction with UserID/UserName
+	// information for application credentials-based authentication.
 	AppCredentialID *string
 	Secret          *string
 }
@@ -116,6 +118,7 @@ func (auth *Authenticator) Login(opts *LoginOptions) error {
 			ScopeDomainID:    opts.ScopeDomainID,
 			ScopeDomainName:  opts.ScopeDomainName,
 			UnscopedToken:    opts.UnscopedLogin,
+			UserID:           opts.UserID,
 			UserName:         opts.UserName,
 			UserDomainName:   opts.UserDomainName,
 			UserPassword:     opts.UserPassword,
@@ -129,6 +132,7 @@ func (auth *Authenticator) Login(opts *LoginOptions) error {
 			ScopeDomainID:    opts.ScopeDomainID,
 			ScopeDomainName:  opts.ScopeDomainName,
 			UnscopedToken:    opts.UnscopedLogin,
+			UserID:           opts.UserID,
 			UserName:         opts.UserName,
 			UserDomainName:   opts.UserDomainName,
 			AppCredentialID:  opts.AppCredentialID,
@@ -148,27 +152,26 @@ func (auth *Authenticator) Login(opts *LoginOptions) error {
 	// now store that info inside the current authenticator and start the
 	// background goroutine that will automatically reissue the token when it
 	// is about to expire.
-	auth.mutex.Lock()
-	defer auth.mutex.Unlock()
-	auth.token = token
+	auth.SetToken(token)
 
-	// TODO: re-enable
-	if auth.token.ExpiresAt != nil {
-		log.Debugf("setting timer for token refresh")
-		if expiryDate, err := time.Parse(ISO8601, *auth.token.ExpiresAt); err == nil {
-			when := expiryDate.Sub(time.Now().Add(5 * time.Second))
-			log.Debugf("re-authentication timer will fire in %v", when)
-			auth.timer = time.NewTimer(5 * time.Second)
-			go func(lo *LoginOptions) {
-				log.Debugf("starting re-authentication timer...")
-				<-auth.timer.C
-				log.Debugf("re-authentication timer logging in again...")
-				auth.Login(lo)
-			}(opts)
-		} else {
-			log.Errorf("error parsing date: %v", err)
-		}
-	}
+	// // this timer will start 30 seconds before the token is expected to expire
+	// if auth.token.ExpiresAt != nil {
+	// 	log.Debugf("setting timer for token refresh")
+	// 	if expiryDate, err := time.Parse(ISO8601, *auth.token.ExpiresAt); err == nil {
+	// 		when := expiryDate.Sub(time.Now().Add(30 * time.Second))
+	// 		log.Debugf("re-authentication timer will fire in %v", when)
+	// 		//auth.timer = time.NewTimer(5 * time.Second)
+	// 		auth.timer = time.NewTimer(when)
+	// 		go func(lo *LoginOptions) {
+	// 			log.Debugf("starting re-authentication timer...")
+	// 			<-auth.timer.C
+	// 			log.Debugf("re-authentication timer logging in again...")
+	// 			auth.Login(lo)
+	// 		}(opts)
+	// 	} else {
+	// 		log.Errorf("error parsing date: %v", err)
+	// 	}
+	// }
 
 	log.Debugf("done logging in")
 	return nil
@@ -186,21 +189,21 @@ func (auth *Authenticator) Logout() error {
 	value := token.Value
 	if value != nil {
 		log.Debugf("invalidating authentication token %s", ZipString(*value, 16))
-		auth.mutex.Lock()
-		defer auth.mutex.Unlock()
+		// auth.mutex.Lock()
+		// defer auth.mutex.Unlock()
 		if auth.timer != nil {
 			log.Debugf("stopping timer")
 			if !auth.timer.Stop() {
 				// drain the timer, as per the docs
+				log.Debugf("draining the timer...")
 				<-auth.timer.C
+				log.Debugf("timer drained")
 			}
 		}
-		if auth.GetToken().Value != nil {
-			opts := &DeleteTokenOptions{
-				SubjectToken: *(auth.GetToken().Value),
-			}
-			auth.Identity.DeleteToken(opts)
+		opts := &DeleteTokenOptions{
+			SubjectToken: *(auth.GetToken().Value),
 		}
+		auth.Identity.DeleteToken(opts)
 		auth.token.Value = nil
 		auth.token = nil
 	}
@@ -215,6 +218,15 @@ func (auth *Authenticator) GetToken() *Token {
 	auth.mutex.RLock()
 	defer auth.mutex.RUnlock()
 	return auth.token
+}
+
+// SetToken updates the current value of the Autheticator token; this includes
+// both data (the "Value" field) and metadata (such as its expiration date and
+// the set of services and endpoints associated with the token).
+func (auth *Authenticator) SetToken(token *Token) {
+	auth.mutex.Lock()
+	defer auth.mutex.Unlock()
+	auth.token = token
 }
 
 // GetCatalog returns the set of services and endpoints associated with the
