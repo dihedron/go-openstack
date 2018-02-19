@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/dihedron/go-log/log"
 	goquery "github.com/google/go-querystring/query"
 )
 
@@ -323,6 +324,7 @@ func addQueryStructs(reqURL *url.URL, queryStructs []interface{}) error {
 		}
 		for key, values := range queryValues {
 			for _, value := range values {
+				log.Debugf("adding %v => %v", key, value)
 				urlValues.Add(key, value)
 			}
 		}

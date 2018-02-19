@@ -36,7 +36,8 @@ func main() {
 		UserDomainName: openstack.String("Default"),
 		UserPassword:   openstack.String("password"),
 		//UnscopedLogin:  openstack.Bool(true),
-		ScopeProjectName: openstack.String("admin"),
+		//ScopeProjectName: openstack.String("admin"),
+		ScopeProjectName: openstack.String("demo"),
 		ScopeDomainName:  openstack.String("Default"),
 	}
 

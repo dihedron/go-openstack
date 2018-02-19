@@ -112,7 +112,7 @@ func (api *IdentityV3API) CreateToken(opts *CreateTokenOptions) (*Token, *Result
 		}
 	}
 
-	initCreateTokenOptionsScope(opts)
+	input.Auth.Scope = initCreateTokenOptionsScope(opts)
 
 	log.Debugf("entity in request body is\n%s\n", log.ToJSON(input))
 
