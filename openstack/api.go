@@ -102,18 +102,22 @@ func (api *API) PrepareRequest(method string, url string, authenticated bool, in
 		log.Debugf("adding headers & query parameters from\n%s\n", log.ToJSON(input))
 
 		// add query parameters
-		sling.QueryStruct(input)
+		addQueryParameters(sling, input)
 
 		// add headers
 		addHeaders(sling, input)
 
 		// add entity to request body
-		sling.BodyJSON(input)
+		addEntity(sling, input)
 	}
 
 	// log.Debugf("Sling is now %v", sling)
 
 	return sling.Request()
+}
+
+func addQueryParameters(sling *sling.Sling, input interface{}) {
+	sling.QueryStruct(input)
 }
 
 // addHeaders recursively scans the input struct, looking for fields with the
@@ -135,6 +139,10 @@ func addHeaders(sling *sling.Sling, input interface{}) {
 			}
 		}
 	}
+}
+
+func addEntity(sling *sling.Sling, input interface{}) {
+	sling.BodyJSON(input)
 }
 
 // HandleResponse parses the HTTP response to an API call and populates the
