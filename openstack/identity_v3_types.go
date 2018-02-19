@@ -17,10 +17,16 @@ package openstack
 // role assignments they have on that project, and then stores the application
 // credential identifier and secret in the config file.
 type AppCredential struct {
-	ID     *string `json:"id,omitempty"`
-	Name   *string `json:"name,omitempty"`
-	Secret *string `json:"secret,imotempty"`
-	User   *User   `json:"user,omitempty"`
+	ID           *string `json:"id,omitempty"`
+	Name         *string `json:"name,omitempty"`
+	User         *User   `json:"user,omitempty"`
+	Secret       *string `json:"secret,imotempty"`
+	Description  *string `json:"description,omitempty"`
+	ExpiresAt    *string `json:"expires_at,omitempty"`
+	Roles        *[]Role `json:"roles,omitempty"`
+	ProjectID    *string `json:"project_id,omitempty"`
+	Unrestricted *bool   `json:"unrestricted,omitempty"`
+	Links        *Links  `json:"links,omitempty"`
 }
 
 // Authentication contains the identity entity used to authenticate users and
@@ -99,9 +105,10 @@ type Project struct {
 // operations. A role includes a set of rights and privileges. A user assumes
 // that role inherits those rights and privileges.
 type Role struct {
-	ID    *string `json:"id,omitempty"`
-	Name  *string `json:"name,omitempty"`
-	Links *Links  `json:"links,omitempty"`
+	ID       *string `json:"id,omitempty"`
+	Name     *string `json:"name,omitempty"`
+	DomainID *string `json:"domain_id,omitempty"`
+	Links    *Links  `json:"links,omitempty"`
 }
 
 // Scope represents the scope of a Token; a Token can be issued either at Project

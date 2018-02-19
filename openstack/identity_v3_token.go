@@ -1,3 +1,6 @@
+// Copyright 2017-present Andrea Funtò. All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
 package openstack
 
 import (
@@ -7,13 +10,6 @@ import (
 
 	"github.com/dihedron/go-log/log"
 )
-
-// IdentityV3API represents the identity API ver. 3, providing support for
-// authentication, authorization, role and resource management.
-// See https://developer.openstack.org/api-ref/identity/v3/
-type IdentityV3API struct {
-	API
-}
 
 // CreateTokenOptions provides all the options for password-based, token-based
 // and app-credentials-based logon, both scoped  and unscoped, with and without
@@ -200,9 +196,9 @@ func (api *IdentityV3API) CreateTokenFromEnv() (*Token, *Result, error) {
  * VALIDATE AND GET TOKEN INFO
  */
 
-// ReadTokenOpts contains the set of parameters and options used to perform the
+// ReadTokenOptions contains the set of parameters and options used to perform the
 // valudation of a token on the Identity server.
-type ReadTokenOpts struct {
+type ReadTokenOptions struct {
 	NoCatalog    bool   `url:"nocatalog,omitempty" json:"-"`
 	AllowExpired bool   `url:"allow_expired,omitempty" json:"-"`
 	SubjectToken string `url:"-" header:"X-Subject-Token" json:"-"`
@@ -211,7 +207,7 @@ type ReadTokenOpts struct {
 // ReadToken uses the provided parameters to read the given token and retrieve
 // information about it from the Identity server; this API requires a valid admin
 // token.
-func (api *IdentityV3API) ReadToken(opts *ReadTokenOpts) (*Token, *Result, error) {
+func (api *IdentityV3API) ReadToken(opts *ReadTokenOptions) (*Token, *Result, error) {
 	output := &struct {
 		Token        *Token  `json:"token,omitempy"`
 		SubjectToken *string `header:"X-Subject-Token" json:"-"`
@@ -233,9 +229,9 @@ func (api *IdentityV3API) ReadToken(opts *ReadTokenOpts) (*Token, *Result, error
  * CHECK TOKEN
  */
 
-// CheckTokenOpts contains the set of parameters and options used to perform the
+// CheckTokenOptions contains the set of parameters and options used to perform the
 // validation of a token on the Identity server.
-type CheckTokenOpts struct {
+type CheckTokenOptions struct {
 	AllowExpired bool   `url:"allow_expired,omitempty" json:"-"`
 	SubjectToken string `url:"-" header:"X-Subject-Token" json:"-"`
 }
@@ -243,7 +239,7 @@ type CheckTokenOpts struct {
 // CheckToken uses the provided parameters to check the given token and retrieve
 // information about it from the Identity server; this API requires a valid admin
 // token.
-func (api *IdentityV3API) CheckToken(opts *CheckTokenOpts) (bool, *Result, error) {
+func (api *IdentityV3API) CheckToken(opts *CheckTokenOptions) (bool, *Result, error) {
 	result, err := api.Invoke(http.MethodHead, "./v3/auth/tokens", true, opts, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 || result.Code == 204 {

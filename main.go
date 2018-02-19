@@ -74,7 +74,7 @@ func main() {
 	log.Debugf("|                          READ TOKEN                               |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	opts3 := &openstack.ReadTokenOpts{
+	opts3 := &openstack.ReadTokenOptions{
 		AllowExpired: true,
 		NoCatalog:    false,
 		SubjectToken: *token.Value,
@@ -91,7 +91,7 @@ func main() {
 	log.Debugf("|                          CHECK TOKEN                              |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	opts4 := &openstack.CheckTokenOpts{
+	opts4 := &openstack.CheckTokenOptions{
 		AllowExpired: true,
 		SubjectToken: *token.Value,
 	}
@@ -143,6 +143,28 @@ func main() {
 
 	// systems, result, err := client.IdentityV3().ReadSystems()
 	// log.Debugf("systems are:\n%s\n", log.ToJSON(systems))
+	// log.Debugf("result is %d (%s)\n", result.Code, result.Status)
+	// if err != nil {
+	// 	log.Debugf("call resulted in %v\n", err)
+	// }
+
+	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                        APP CREDENTIALS                            |")
+	log.Debugf("+-------------------------------------------------------------------+")
+
+	// opts5 := &openstack.CreateTokenOptions{
+	// 	NoCatalog:        false,
+	// 	Authenticated:    true,
+	// 	ScopeProjectName: openstack.String("admin"),
+	// 	ScopeDomainName:  openstack.String("Default"),
+	// 	UserName:         openstack.String("admin"),
+	// 	UserDomainName:   openstack.String("Default"),
+	// 	UserPassword:     openstack.String("password"),
+	// }
+
+	// token, result, err := client.IdentityV3().CreateToken(opts2)
+	// log.Debugf("token is %q\n", *token.Value)
+	// log.Debugf("token is\n%s\n", log.ToJSON(token))
 	// log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	// if err != nil {
 	// 	log.Debugf("call resulted in %v\n", err)

@@ -55,7 +55,7 @@ func (api *API) Invoke(method string, url string, authenticated bool, input inte
 		return nil, err
 	}
 
-	log.Debugf("request: %v", request)
+	//log.Debugf("request: %v", request)
 
 	response, err := api.client.HTTPClient.Do(request)
 	if err != nil {
@@ -111,7 +111,7 @@ func (api *API) PrepareRequest(method string, url string, authenticated bool, in
 		sling.BodyJSON(input)
 	}
 
-	log.Debugf("Sling is now %v", sling)
+	// log.Debugf("Sling is now %v", sling)
 
 	return sling.Request()
 }
