@@ -15,7 +15,7 @@ import (
 func main() {
 
 	log.SetLevel(log.DBG)
-	log.SetStream(os.Stdout)
+	log.SetStream(os.Stdout, true)
 	log.SetTimeFormat("15:04:05.000")
 
 	log.Debugf("+-------------------------------------------------------------------+")
