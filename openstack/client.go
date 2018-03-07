@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dghubble/sling"
 	"github.com/dihedron/go-log/log"
+	"github.com/dihedron/sling"
 )
 
 const (

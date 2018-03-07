@@ -15,8 +15,8 @@ import (
 
 	"github.com/fatih/structs"
 
-	"github.com/dghubble/sling"
 	"github.com/dihedron/go-log/log"
+	"github.com/dihedron/sling"
 )
 
 // API is the archetype and base struct of all API services.
