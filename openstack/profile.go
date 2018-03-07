@@ -12,7 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/dihedron/go-log/log"
+	"github.com/dihedron/go-log"
 )
 
 // Profile represents the list of service endpoints to use when connecting

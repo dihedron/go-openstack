@@ -2,22 +2,16 @@
 
 
 [[projects]]
-  name = "github.com/dghubble/sling"
+  branch = "master"
+  name = "github.com/dihedron/go-log"
   packages = ["."]
-  revision = "eb56e89ac5088bebb12eef3cb4b293300f43608b"
-  version = "v1.1.0"
+  revision = "615b17cee7f32547291129378afb18f31a97efb0"
 
 [[projects]]
   branch = "master"
-  name = "github.com/dihedron/go-log"
-  packages = ["log"]
-  revision = "434db2b173863258d13b43b0c3119388101dce5b"
-
-[[projects]]
-  name = "github.com/dihedron/sling"
-  packages = ["."]
-  revision = "eb56e89ac5088bebb12eef3cb4b293300f43608b"
-  version = "v1.1.0"
+  name = "github.com/dihedron/go-request"
+  packages = ["request"]
+  revision = "163b08c1c1653e57146bf520f7e3938507804081"
 
 [[projects]]
   name = "github.com/fatih/color"
@@ -30,12 +24,6 @@
   packages = ["."]
   revision = "a720dfa8df582c51dee1b36feabb906bde1588bd"
   version = "v1.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/google/go-querystring"
-  packages = ["query"]
-  revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
 
 [[projects]]
   name = "github.com/mattn/go-colorable"
@@ -58,6 +46,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b39fbbf6157860c835263b5ab38ebfd9116055072ee49d57e1fce5deca11e21d"
+  inputs-digest = "119f11e37b27c64f9c03555bc57f281fc3f19892486c514bbb8d543fd0ec7af0"
   solver-name = "gps-cdcl"
   solver-version = 1

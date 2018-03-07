@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/dihedron/go-log/log"
+	"github.com/dihedron/go-log"
 )
 
 // CreateTokenOptions provides all the options for password-based, token-based

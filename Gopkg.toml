@@ -29,10 +29,6 @@
   branch = "master"
   name = "github.com/dihedron/go-log"
 
-[[constraint]]
-  name = "github.com/fatih/structs"
-  version = "1.0.0"
-
 [prune]
   go-tests = true
   unused-packages = true
@@ -40,7 +36,3 @@
 [[constraint]]
   branch = "master"
   name = "github.com/dihedron/go-request"
-
-[[constraint]]
-  name = "github.com/dihedron/sling"
-

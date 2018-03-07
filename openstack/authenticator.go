@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dihedron/go-log/log"
+	"github.com/dihedron/go-log"
 )
 
 // Authenticator uses the services of an IdentityAPIV3 to get the first access

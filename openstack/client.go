@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dihedron/go-log/log"
+	"github.com/dihedron/go-log"
 	"github.com/dihedron/go-request/request"
 )
 
