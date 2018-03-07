@@ -42,6 +42,5 @@
   name = "github.com/dihedron/go-request"
 
 [[constraint]]
-  branch = "http_verbs_support"
   name = "github.com/dihedron/sling"
 

@@ -13,10 +13,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/fatih/structs"
-
 	"github.com/dihedron/go-log/log"
-	"github.com/dihedron/sling"
+	"github.com/dihedron/go-request/request"
 )
 
 // API is the archetype and base struct of all API services.
@@ -29,8 +27,11 @@ type API struct {
 	// friendly.
 	client *Client
 
-	// requestor is the generator for service-specific requests; it uses the base.
-	requestor *sling.Sling
+	// builder is the generator for service-specific requests; it provides the
+	// base URL and some common parameters and headers; APIs can derive their
+	// own sub-builders by specifying a different and more specific path, plus
+	// their own sets of headers and query parameters.
+	builder *request.Builder
 }
 
 // Invoke calls an API endpoint at the given path; if the receiver already has a
@@ -81,7 +82,7 @@ func (api *API) PrepareRequest(method string, url string, authenticated bool, in
 
 	log.Debugf("preparing %s request for %s (authenticated: %t)", strings.ToUpper(method), url, authenticated)
 
-	sling := api.requestor.New().Method(method).Path(url)
+	builder := api.builder.New(method, url)
 
 	// add authentication header if requested
 	if authenticated {
@@ -91,7 +92,7 @@ func (api *API) PrepareRequest(method string, url string, authenticated bool, in
 			return nil, fmt.Errorf("no valid token for authenticated call")
 		}
 		log.Debugf("adding authentication token (X-Auth-Token): %s", ZipString(*token.Value, 16))
-		sling.Add("X-Auth-Token", *token.Value)
+		builder.Add().Header("X-Auth-Token", *token.Value)
 	}
 
 	if input != nil {
@@ -101,48 +102,14 @@ func (api *API) PrepareRequest(method string, url string, authenticated bool, in
 
 		log.Debugf("adding headers & query parameters from\n%s\n", log.ToJSON(input))
 
-		// add query parameters
-		addQueryParameters(sling, input)
-
-		// add headers
-		addHeaders(sling, input)
-
-		// add entity to request body
-		addEntity(sling, input)
+		// add query parameters, headers and request entity
+		builder.
+			Add().
+			QueryParametersFrom(input).
+			HeadersFrom(input).
+			WithJSONEntity(input)
 	}
-
-	// log.Debugf("Sling is now %v", sling)
-
-	return sling.Request()
-}
-
-func addQueryParameters(sling *sling.Sling, input interface{}) {
-	sling.QueryStruct(input)
-}
-
-// addHeaders recursively scans the input struct, looking for fields with the
-// "header" tag; if the structs contains embedded structs, the function is called
-// recursively.
-func addHeaders(sling *sling.Sling, input interface{}) {
-	log.Debugf("looking for 'header' tags...")
-	for _, field := range structs.Fields(input) {
-		if field.IsEmbedded() {
-			log.Debugf("recursing to embedded struct..")
-			addHeaders(sling, field.Value())
-			log.Debugf("done recursive call")
-		} else {
-			tag := field.Tag("header")
-			if tag != "" {
-				value := field.Value().(string)
-				log.Debugf("adding header %q => %v", tag, value)
-				sling.Add(tag, value)
-			}
-		}
-	}
-}
-
-func addEntity(sling *sling.Sling, input interface{}) {
-	sling.BodyJSON(input)
+	return builder.Make()
 }
 
 // HandleResponse parses the HTTP response to an API call and populates the

@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/dihedron/go-log/log"
-	"github.com/dihedron/sling"
+	"github.com/dihedron/go-request/request"
 )
 
 const (
@@ -109,8 +109,8 @@ func NewClient(authURL string, httpClient *http.Client, userAgent *string) *Clie
 		AuthURL: String(authURL),
 		Identity: &IdentityV3API{
 			API{
-				client:    client,
-				requestor: sling.New().Set("User-Agent", *userAgent).Client(httpClient).Base(NormaliseURL(authURL)),
+				client:  client,
+				builder: request.New(NormaliseURL(authURL)).UserAgent(*userAgent),
 			},
 		},
 		token: nil,
@@ -181,8 +181,8 @@ func (c *Client) Connect(opts *LoginOptions) error {
 			case "identity":
 				c.Services[*service.Type] = IdentityV3API{
 					API{
-						client:    c,
-						requestor: sling.New().Set("User-Agent", c.UserAgent).Client(&c.HTTPClient).Base(NormaliseURL(*endpoint.URL)),
+						client:  c,
+						builder: request.New(NormaliseURL(*endpoint.URL)).UserAgent(c.UserAgent),
 					},
 				}
 			default:
