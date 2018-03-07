@@ -15,7 +15,7 @@ func TestCreateTokenFromEnv(t *testing.T) {
 	}
 
 	log.SetLevel(log.ERR)
-	log.SetStream(os.Stdout)
+	log.SetStream(os.Stdout, true)
 	log.SetTimeFormat("15:04:05.000")
 
 	client := NewDefaultClient("")
