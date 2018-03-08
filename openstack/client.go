@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/dihedron/go-log"
-	"github.com/dihedron/go-request/request"
+	"github.com/dihedron/go-request"
 )
 
 const (

@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/dihedron/go-log"
-	"github.com/dihedron/go-request/request"
+	"github.com/dihedron/go-request"
 )
 
 // API is the archetype and base struct of all API services.

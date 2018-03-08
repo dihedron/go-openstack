@@ -397,6 +397,41 @@ func (f *Builder) Make() (*http.Request, error) {
 	return request, nil
 }
 
+// String prints the current request builder internal state as a string.
+func (f Builder) String() string {
+
+	data := struct {
+		Method     string      `json:"method,omitempty"`
+		URL        string      `json:"url,omitempty"`
+		Headers    http.Header `json:"headers,omitempty"`
+		Parameters url.Values  `json:"parameters,omitempty"`
+		Request    string      `json:"request,omitempty"`
+		Body       string      `json:"body,omitempty"`
+	}{
+		Method:     f.method,
+		URL:        f.url,
+		Headers:    f.headers,
+		Parameters: f.parameters,
+	}
+
+	if req, err := f.Make(); err == nil {
+		data.Request = req.URL.String()
+	}
+
+	if f.body != nil {
+		data.Body = fmt.Sprintf("%q (%T)", f.body, f.body)
+	} else {
+		data.Body = "nil"
+	}
+
+	b, _ := json.MarshalIndent(data, "", "  ")
+	b = bytes.Replace(b, []byte("\\u003c"), []byte("<"), -1)
+	b = bytes.Replace(b, []byte("\\u003e"), []byte(">"), -1)
+	b = bytes.Replace(b, []byte("\\u0026"), []byte("&"), -1)
+
+	return string(b)
+}
+
 func getValuesFrom(tag string, source interface{}) map[string][]string {
 	var m map[string][]string
 	switch reflect.ValueOf(source).Kind() {
