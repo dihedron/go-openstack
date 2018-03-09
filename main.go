@@ -46,6 +46,8 @@ func main() {
 	client.Connect(opts1)
 	defer client.Close()
 
+	os.Exit(0)
+
 	//time.Sleep(10 * time.Second)
 
 	log.Debugf("+-------------------------------------------------------------------+")
@@ -53,7 +55,7 @@ func main() {
 	log.Debugf("+-------------------------------------------------------------------+")
 
 	opts2 := &openstack.CreateTokenOptions{
-		NoCatalog:        false,
+		NoCatalog:        openstack.Bool(true),
 		Authenticated:    true,
 		ScopeProjectName: openstack.String("admin"),
 		ScopeDomainName:  openstack.String("Default"),
@@ -75,8 +77,8 @@ func main() {
 	log.Debugf("+-------------------------------------------------------------------+")
 
 	opts3 := &openstack.ReadTokenOptions{
-		AllowExpired: true,
-		NoCatalog:    false,
+		AllowExpired: openstack.Bool(true),
+		NoCatalog:    openstack.Bool(false),
 		SubjectToken: *token.Value,
 	}
 	token, result, err = client.IdentityV3().ReadToken(opts3)
@@ -92,7 +94,7 @@ func main() {
 	log.Debugf("+-------------------------------------------------------------------+")
 
 	opts4 := &openstack.CheckTokenOptions{
-		AllowExpired: true,
+		AllowExpired: openstack.Bool(true),
 		SubjectToken: *token.Value,
 	}
 	ok, result, err := client.IdentityV3().CheckToken(opts4)

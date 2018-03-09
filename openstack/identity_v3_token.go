@@ -29,7 +29,7 @@ type CreateTokenOptions struct {
 	ScopeDomainID    *string
 	ScopeDomainName  *string
 	UnscopedToken    *bool
-	NoCatalog        bool //`url:"nocatalog,omitempty"`
+	NoCatalog        *bool
 	Authenticated    bool
 }
 
@@ -38,21 +38,21 @@ type CreateTokenOptions struct {
  */
 
 // CreateToken uses the provided parameters to authenticate the client or the
-// application to the Keystone server and receive a token; application can be
+// application to the Keystone server and receive a token; authentication can be
 // performed via username and password ("password" method), via an existing
 // token ("token" method, e.g. when an unscoped token is already available), or
 // via a pre-existing secret issued by Keystone ("application_credential" method,
-// used to authenticate applications to the platform as if it were interacting on
-// behalf of a user and authorising it to a  subset of the user's resources
+// used to authenticate an application to the platform as if it were interacting
+// on behalf of a user and authorising it to a subset of the user's resources
 // without sharing the user's credentials).
 func (api *IdentityV3API) CreateToken(opts *CreateTokenOptions) (*Token, *Result, error) {
 
 	input := &struct {
-		NoCatalog bool            `url:"nocatalog,omitempty" json:"-"`
-		Auth      *Authentication `url:"-" json:"auth,omitempty"`
-	}{}
-
-	input.NoCatalog = opts.NoCatalog
+		NoCatalog *bool           `parameter:"nocatalog,omitempty" header:"-" json:"-"`
+		Auth      *Authentication `parameter:"-" header:"-" json:"auth,omitempty"`
+	}{
+		NoCatalog: opts.NoCatalog,
+	}
 
 	if opts.UserPassword != nil && len(*opts.UserPassword) > 0 {
 		log.Debugf("logging in by password")
@@ -88,7 +88,6 @@ func (api *IdentityV3API) CreateToken(opts *CreateTokenOptions) (*Token, *Result
 		}
 	} else if opts.AppCredentialID != nil && len(*opts.AppCredentialID) > 0 {
 		log.Debugf("logging in by app credential")
-		input.NoCatalog = opts.NoCatalog
 		input.Auth = &Authentication{
 			Identity: &Identity{
 				Methods: &[]string{
@@ -111,24 +110,24 @@ func (api *IdentityV3API) CreateToken(opts *CreateTokenOptions) (*Token, *Result
 
 	input.Auth.Scope = initCreateTokenOptionsScope(opts)
 
-	log.Debugf("entity in request body is\n%s\n", log.ToJSON(input))
+	// log.Debugf("entity in request body is\n%s\n", log.ToJSON(input))
 
 	output := &struct {
-		SubjectToken *string `url:"-" header:"X-Subject-Token" json:"-"`
-		Token        *Token  `url:"-" json:"token,omitempy"`
+		SubjectToken *string `parameter:"-" header:"X-Subject-Token" json:"-"`
+		Token        *Token  `parameter:"-" header:"-" json:"token,omitempy"`
 	}{}
-
-	log.Debugf("before invoking API")
 
 	result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", opts.Authenticated, input, output)
 	log.Debugf("result is %v (%v)", result, err)
 	if output.SubjectToken != nil {
 		output.Token.Value = output.SubjectToken
-		return output.Token, result, err
 	}
 	return output.Token, result, err
 }
 
+// initCreateScopeOptions initialises the Scope section of the Authentication
+// object in the HTTP request entity; there are a few priority rules for scoping:
+// for details see the OpenStack Identity v3 documentation.
 func initCreateTokenOptionsScope(opts *CreateTokenOptions) interface{} {
 	// manage scoped/unscoped token requests
 	if opts.ScopeProjectID != nil && len(strings.TrimSpace(*opts.ScopeProjectID)) > 0 {
@@ -198,11 +197,11 @@ func (api *IdentityV3API) CreateTokenFromEnv() (*Token, *Result, error) {
  */
 
 // ReadTokenOptions contains the set of parameters and options used to perform the
-// valudation of a token on the Identity server.
+// validation of a token on the Identity server.
 type ReadTokenOptions struct {
-	NoCatalog    bool   `url:"nocatalog,omitempty" json:"-"`
-	AllowExpired bool   `url:"allow_expired,omitempty" json:"-"`
-	SubjectToken string `url:"-" header:"X-Subject-Token" json:"-"`
+	NoCatalog    *bool  `parameter:"nocatalog,omitempty" header:"-" json:"-"`
+	AllowExpired *bool  `parameter:"allow_expired,omitempty" header:"-" json:"-"`
+	SubjectToken string `parameter:"-" header:"X-Subject-Token" json:"-"`
 }
 
 // ReadToken uses the provided parameters to read the given token and retrieve
@@ -210,8 +209,8 @@ type ReadTokenOptions struct {
 // token.
 func (api *IdentityV3API) ReadToken(opts *ReadTokenOptions) (*Token, *Result, error) {
 	output := &struct {
-		Token        *Token  `json:"token,omitempy"`
-		SubjectToken *string `header:"X-Subject-Token" json:"-"`
+		Token        *Token  `parameter:"-" header:"-" json:"token,omitempy"`
+		SubjectToken *string `parameter:"-" header:"X-Subject-Token" json:"-"`
 	}{}
 
 	result, err := api.Invoke(http.MethodGet, "./v3/auth/tokens", true, opts, output)
@@ -233,8 +232,8 @@ func (api *IdentityV3API) ReadToken(opts *ReadTokenOptions) (*Token, *Result, er
 // CheckTokenOptions contains the set of parameters and options used to perform the
 // validation of a token on the Identity server.
 type CheckTokenOptions struct {
-	AllowExpired bool   `url:"allow_expired,omitempty" json:"-"`
-	SubjectToken string `url:"-" header:"X-Subject-Token" json:"-"`
+	AllowExpired *bool  `parameter:"allow_expired,omitempty" header:"-" json:"-"`
+	SubjectToken string `parameter:"-" header:"X-Subject-Token" json:"-"`
 }
 
 // CheckToken uses the provided parameters to check the given token and retrieve

@@ -101,7 +101,7 @@ func (auth *Authenticator) Login(opts *LoginOptions) error {
 
 	if opts.TokenID != nil && len(strings.TrimSpace(*opts.TokenID)) > 0 {
 		cto = &CreateTokenOptions{
-			NoCatalog:        false,
+			//NoCatalog:        false,
 			ScopeProjectID:   opts.ScopeProjectID,
 			ScopeProjectName: opts.ScopeProjectName,
 			ScopeDomainID:    opts.ScopeDomainID,
@@ -112,7 +112,7 @@ func (auth *Authenticator) Login(opts *LoginOptions) error {
 		log.Debugf("performing token-based authentication (%s)", ZipString(*opts.TokenID, 10))
 	} else if opts.UserPassword != nil && len(strings.TrimSpace(*opts.UserPassword)) > 0 {
 		cto = &CreateTokenOptions{
-			NoCatalog:        false,
+			//NoCatalog:        false,
 			ScopeProjectID:   opts.ScopeProjectID,
 			ScopeProjectName: opts.ScopeProjectName,
 			ScopeDomainID:    opts.ScopeDomainID,
@@ -126,7 +126,7 @@ func (auth *Authenticator) Login(opts *LoginOptions) error {
 		log.Debugf("performing password-based authentication (%s\\%s:%s)", *opts.UserDomainName, *opts.UserName, *opts.UserPassword)
 	} else if opts.AppCredentialID != nil && len(strings.TrimSpace(*opts.AppCredentialID)) > 0 && opts.Secret != nil && len(strings.TrimSpace(*opts.Secret)) > 0 {
 		cto = &CreateTokenOptions{
-			NoCatalog:        false,
+			//NoCatalog:        false,
 			ScopeProjectID:   opts.ScopeProjectID,
 			ScopeProjectName: opts.ScopeProjectName,
 			ScopeDomainID:    opts.ScopeDomainID,

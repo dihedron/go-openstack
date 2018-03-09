@@ -463,15 +463,40 @@ func getValuesFrom(tag string, source interface{}) map[string][]string {
 
 func getValuesFromStruct(tag string, source interface{}) map[string][]string {
 	result := map[string][]string{}
-	for key, values := range scan(tag, source) {
-		for _, value := range values {
-			if _, ok := result[key]; !ok {
-				result[key] = []string{}
+outer:
+	for tagValue, values := range scan(tag, source) {
+		omitempty := false
+		key := ""
+		for _, k := range strings.Split(tagValue, ",") {
+			switch strings.TrimSpace(k) {
+			case "omitempty":
+				omitempty = true
+			case "-":
+				continue outer
+			default:
+				key = k
 			}
+		}
+
+		for _, value := range values {
 			if reflect.ValueOf(value).Kind() == reflect.Ptr {
-				result[key] = append(result[key], fmt.Sprintf("%v", reflect.ValueOf(value).Elem().Interface()))
+				if !reflect.ValueOf(value).IsNil() {
+					s := fmt.Sprintf("%v", reflect.ValueOf(value).Elem().Interface())
+					if !omitempty || len(s) > 0 {
+						if _, ok := result[key]; !ok {
+							result[key] = []string{}
+						}
+						result[key] = append(result[key], s)
+					}
+				}
 			} else {
-				result[key] = append(result[key], fmt.Sprintf("%v", value))
+				s := fmt.Sprintf("%v", value)
+				if !omitempty || len(s) > 0 {
+					if _, ok := result[key]; !ok {
+						result[key] = []string{}
+					}
+					result[key] = append(result[key], s)
+				}
 			}
 		}
 	}

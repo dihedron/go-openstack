@@ -11,7 +11,7 @@
   branch = "master"
   name = "github.com/dihedron/go-request"
   packages = ["."]
-  revision = "4d30686a88ed35c8cfaf05252569d810d4246b4e"
+  revision = "73e69004a96d838400944fe3b1b115486af41508"
 
 [[projects]]
   name = "github.com/fatih/color"

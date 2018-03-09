@@ -11,7 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"reflect"
-	"strings"
+	"time"
 
 	"github.com/dihedron/go-log"
 	"github.com/dihedron/go-request"
@@ -48,7 +48,7 @@ type API struct {
 // method uses their default implementations which relies on tags as noted above.
 func (api *API) Invoke(method string, url string, authenticated bool, input interface{}, output interface{}) (*Result, error) {
 
-	log.Debugf("calling method %q on URL %q", method, url)
+	//log.Debugf("calling method %q on URL %q", method, url)
 
 	request, err := api.PrepareRequest(method, url, authenticated, input)
 	if err != nil {
@@ -56,13 +56,14 @@ func (api *API) Invoke(method string, url string, authenticated bool, input inte
 		return nil, err
 	}
 
-	//log.Debugf("request: %v", request)
-
+	log.Debugf("sending request...")
+	t0 := time.Now()
 	response, err := api.client.HTTPClient.Do(request)
 	if err != nil {
 		log.Errorf("error sending request: %v", err)
 		return nil, err
 	}
+	log.Debugf("response received in %v", time.Now().Sub(t0))
 
 	defer response.Body.Close()
 
@@ -80,8 +81,6 @@ func (api *API) Invoke(method string, url string, authenticated bool, input inte
 // optional; if this is the case, pass nil for "input".
 func (api *API) PrepareRequest(method string, url string, authenticated bool, input interface{}) (*http.Request, error) {
 
-	log.Debugf("preparing %s request for %s (authenticated: %t)", strings.ToUpper(method), url, authenticated)
-
 	builder := api.builder.New(method, url)
 
 	// add authentication header if requested
@@ -91,16 +90,23 @@ func (api *API) PrepareRequest(method string, url string, authenticated bool, in
 			log.Errorf("no valid token available for authenticated call")
 			return nil, fmt.Errorf("no valid token for authenticated call")
 		}
-		log.Debugf("adding authentication token (X-Auth-Token): %s", ZipString(*token.Value, 16))
 		builder.Add().Header("X-Auth-Token", *token.Value)
 	}
 
 	if input != nil {
-		if reflect.TypeOf(input).Elem().Kind() != reflect.Struct {
+		switch reflect.ValueOf(input).Kind() {
+		case reflect.Struct:
+			// do nothing, input is already a struct, thus it's ok
+		case reflect.Ptr:
+			// override input by the value it points to if it's a struct
+			if reflect.ValueOf(input).Elem().Kind() == reflect.Struct {
+				input = reflect.ValueOf(input).Elem().Interface()
+			} else {
+				panic("only structs can be passed as API input")
+			}
+		default:
 			panic("only structs can be passed as API input")
 		}
-
-		log.Debugf("adding headers & query parameters from\n%s\n", log.ToJSON(input))
 
 		// add query parameters, headers and request entity
 		builder.
@@ -108,6 +114,8 @@ func (api *API) PrepareRequest(method string, url string, authenticated bool, in
 			QueryParametersFrom(input).
 			HeadersFrom(input).
 			WithJSONEntity(input)
+
+		log.Infof("request:\n%v\nwith entity:\n%s", builder, log.ToJSON(input))
 	}
 	return builder.Make()
 }
@@ -119,31 +127,33 @@ func (api *API) PrepareRequest(method string, url string, authenticated bool, in
 // if so, pass in nil for "output".
 func (api *API) HandleResponse(response *http.Response, output interface{}) (*Result, error) {
 
+	log.Infof("status code: %q", response.Status)
+
 	// read the response data into a buffer
 	data, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		log.Errorf("error reading response raw data: %v", err)
 		return nil, err
 	}
-	if len(data) > 0 {
-		log.Debugf("the response payload is:\n%s\n", string(data))
-	} else {
+	if len(data) == 0 {
 		log.Debugf("no payload in response")
+		// } else {
+		// 	log.Debugf("the response payload is:\n%s\n", string(data))
 	}
 
 	if output != nil {
+
 		if reflect.TypeOf(output).Elem().Kind() != reflect.Struct {
 			panic("only structs can be passed as API output")
 		}
 
-		// extract headers into the output struct and entity or error into the
-		// corresponding struct field() tagged with `entity:"success"` or
-		// `entity:"failure"` respectively)
+		// extract headers into the output struct fields tagged with `header` and
+		// the response entity into the struct fields tagged with `json`
 		t := reflect.TypeOf(output).Elem()
 		v := reflect.ValueOf(output).Elem()
 		//log.Debugf("%T, %T, %d", t, v, v.Kind)
 		for i := 0; i < t.NumField(); i++ {
-			if tag := t.Field(i).Tag.Get("header"); tag != "" {
+			if tag := t.Field(i).Tag.Get("header"); tag != "" && tag != "-" {
 				value := v.Field(i)
 				if value.Kind() == reflect.Ptr {
 					value.Set(reflect.New(value.Type().Elem()))
@@ -153,7 +163,9 @@ func (api *API) HandleResponse(response *http.Response, output interface{}) (*Re
 					value.SetString(response.Header.Get(tag))
 				} else {
 					// there is an error????
+					log.Warnf("invalid field type in output struct: %q", t.Field(i).Name)
 				}
+				log.Infof("header: %q => %q", t.Field(i).Name, response.Header.Get(tag))
 			}
 		}
 
@@ -163,7 +175,7 @@ func (api *API) HandleResponse(response *http.Response, output interface{}) (*Re
 				log.Errorf("error decoding response into entity: %v", err)
 				return NewResult(response, data), err
 			}
-			log.Debugf("deserialised entity is:\n%s\n", log.ToJSON(output))
+			log.Infof("response entity:\n%s", log.ToJSON(output))
 		}
 	}
 
