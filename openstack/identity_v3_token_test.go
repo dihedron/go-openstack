@@ -83,35 +83,35 @@ func TestCreateTokenParam(t *testing.T) {
 			UserName:       String("admin"),
 			UserDomainName: String("Default"),
 			UserPassword:   String("password"),
-			NoCatalog:      true,
+			NoCatalog:      Bool(true),
 		},
 		"UserNameUserDomainPasswordExplicitlyUnscopedNoCatalog": &CreateTokenOptions{
 			UserName:       String("admin"),
 			UserDomainName: String("Default"),
 			UserPassword:   String("password"),
 			UnscopedToken:  Bool(true),
-			NoCatalog:      true,
+			NoCatalog:      Bool(true),
 		},
 		"UserNameUserDomainPasswordScopedDomainIDNoCatalog": &CreateTokenOptions{
 			UserName:       String("admin"),
 			UserDomainName: String("Default"),
 			UserPassword:   String("password"),
 			ScopeDomainID:  String("default"),
-			NoCatalog:      true,
+			NoCatalog:      Bool(true),
 		},
 		"UserNameUserDomainPasswordScopedDomainNameNoCatalog": &CreateTokenOptions{
 			UserName:        String("admin"),
 			UserDomainName:  String("Default"),
 			UserPassword:    String("password"),
 			ScopeDomainName: String("Default"),
-			NoCatalog:       true,
+			NoCatalog:       Bool(true),
 		},
 		"UserNameUserDomainPasswordScopedProjectIDNoCatalog": &CreateTokenOptions{
 			UserName:       String("admin"),
 			UserDomainName: String("Default"),
 			UserPassword:   String("password"),
 			ScopeProjectID: String("b5ca4b54c504463291d138f0c24e1a20"),
-			NoCatalog:      true,
+			NoCatalog:      Bool(true),
 		},
 		"UserNameUserDomainPasswordScopedProjectNameDomainNameNoCatalog": &CreateTokenOptions{
 			UserName:         String("admin"),
@@ -119,7 +119,7 @@ func TestCreateTokenParam(t *testing.T) {
 			UserPassword:     String("password"),
 			ScopeProjectName: String("admin"),
 			ScopeDomainName:  String("Default"),
-			NoCatalog:        true,
+			NoCatalog:        Bool(true),
 		},
 		"UserNameUserDomainPasswordScopedProjectNameDomainIDNoCatalog": &CreateTokenOptions{
 			UserName:         String("admin"),
@@ -127,7 +127,7 @@ func TestCreateTokenParam(t *testing.T) {
 			UserPassword:     String("password"),
 			ScopeProjectName: String("admin"),
 			ScopeDomainID:    String("default"),
-			NoCatalog:        true,
+			NoCatalog:        Bool(true),
 		},
 	}
 	for test, opts := range tests {
