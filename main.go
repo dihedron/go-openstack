@@ -119,7 +119,7 @@ func main() {
 	log.Debugf("|                         GET PROJECTS                              |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	projects, result, err := client.IdentityV3().ReadProjects()
+	projects, result, err := client.IdentityV3().ListProjects()
 	log.Debugf("projects are:\n%s\n", log.ToJSON(projects))
 	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
@@ -130,7 +130,7 @@ func main() {
 	log.Debugf("|                          GET DOMAINS                              |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	domains, result, err := client.IdentityV3().ReadDomains()
+	domains, result, err := client.IdentityV3().ListDomains()
 	log.Debugf("domains are:\n%s\n", log.ToJSON(domains))
 	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
