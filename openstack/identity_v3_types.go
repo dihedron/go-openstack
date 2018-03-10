@@ -167,6 +167,12 @@ type User struct {
 	ID                *string `json:"id,omitempty"`
 	Name              *string `json:"name,omitempty"`
 	Domain            *Domain `json:"domain,omitempty"`
+	DomainID          *string `json:"domain_id,omitempty"`
+	DefaultProjectID  *string `json:"default_project_id,omitempty"`
+	Enabled           *bool   `json:"enabled,omitempty"`
 	Password          *string `json:"password,omitempty"`
 	PasswordExpiresAt *string `json:"password_expires_at,omitempty"`
+	Description       *string `json:"description,omitempty"`
+	Email             *string `json:"email,omitempty"`
+	Links             *Links  `json:"links,omitempty"`
 }

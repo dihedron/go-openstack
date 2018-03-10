@@ -125,7 +125,7 @@ func (api *IdentityV3API) CreateToken(opts *CreateTokenOptions) (*Token, *Result
 	return output.Token, result, err
 }
 
-// initCreateScopeOptions initialises the Scope section of the Authentication
+// initCreateTokenOptionsScope initialises the Scope section of the Authentication
 // object in the HTTP request entity; there are a few priority rules for scoping:
 // for details see the OpenStack Identity v3 documentation.
 func initCreateTokenOptionsScope(opts *CreateTokenOptions) interface{} {
@@ -255,7 +255,7 @@ func (api *IdentityV3API) CheckToken(opts *CheckTokenOptions) (bool, *Result, er
 // DeleteTokenOptions contains the set of parameters and options used to perform
 // the deletion of a token on the Identity server.
 type DeleteTokenOptions struct {
-	SubjectToken string `url:"-" header:"X-Subject-Token" json:"-"`
+	SubjectToken string `parameter:"-" header:"X-Subject-Token" json:"-"`
 }
 
 // DeleteToken uses the provided parameters to delete the given token; the token
@@ -279,8 +279,8 @@ func (api *IdentityV3API) DeleteToken(opts *DeleteTokenOptions) (bool, *Result, 
 // (?nocataog=true).
 func (api *IdentityV3API) ReadCatalog() (*[]Service, *Result, error) {
 	output := &struct {
-		Catalog *[]Service `json:"catalog,omitempty"`
-		Links   *Links     `json:"links,omitempty"`
+		Catalog *[]Service `header:"-" json:"catalog,omitempty"`
+		Links   *Links     `header:"-" json:"links,omitempty"`
 	}{}
 
 	result, err := api.Invoke(http.MethodGet, "./v3/auth/catalog", true, nil, output)
@@ -292,16 +292,16 @@ func (api *IdentityV3API) ReadCatalog() (*[]Service, *Result, error) {
 }
 
 /*
- * GET PROJECTS
+ * LIST PROJECTS
  */
 
-// ReadProjects returns the list of projects that are available to be scoped to
+// ListProjects returns the list of projects that are available to be scoped to
 // based on the X-Auth-Token provided in the request. The structure of the
 // response is exactly the same as listing projects for a user.
-func (api *IdentityV3API) ReadProjects() (*[]Project, *Result, error) {
+func (api *IdentityV3API) ListProjects() (*[]Project, *Result, error) {
 	output := &struct {
-		Projects *[]Project `json:"projects,omitempty"`
-		Links    *Links     `json:"links,omitempty"`
+		Projects *[]Project `header:"-" json:"projects,omitempty"`
+		Links    *Links     `header:"-" json:"links,omitempty"`
 	}{}
 
 	result, err := api.Invoke(http.MethodGet, "./v3/auth/projects", true, nil, output)
@@ -313,16 +313,16 @@ func (api *IdentityV3API) ReadProjects() (*[]Project, *Result, error) {
 }
 
 /*
- * GET PROJECTS
+ * LIST DOMAINS
  */
 
-// ReadDomains returns the list of domains that are available to be scoped to
+// ListDomains returns the list of domains that are available to be scoped to
 // based on the X-Auth-Token provided in the request. The structure is the same
 // as listing domains.
-func (api *IdentityV3API) ReadDomains() (*[]Domain, *Result, error) {
+func (api *IdentityV3API) ListDomains() (*[]Domain, *Result, error) {
 	output := &struct {
-		Domains *[]Domain `json:"domains,omitempty"`
-		Links   *Links    `json:"links,omitempty"`
+		Domains *[]Domain `header:"-" json:"domains,omitempty"`
+		Links   *Links    `header:"-" json:"links,omitempty"`
 	}{}
 
 	result, err := api.Invoke(http.MethodGet, "./v3/auth/domains", true, nil, output)
@@ -334,15 +334,15 @@ func (api *IdentityV3API) ReadDomains() (*[]Domain, *Result, error) {
 }
 
 /*
- * GET SYSTEMS
+ * LIST SYSTEMS
  */
 
-// ReadSystems returns the list of systems that are available to be scoped to
+// ListSystems returns the list of systems that are available to be scoped to
 // based on the X-Auth-Token provided in the request.
-func (api *IdentityV3API) ReadSystems() (*[]System, *Result, error) {
+func (api *IdentityV3API) ListSystems() (*[]System, *Result, error) {
 	output := &struct {
-		Systems *[]System `json:"system,omitempty"`
-		Links   *Links    `json:"links,omitempty"`
+		Systems *[]System `header:"-" json:"system,omitempty"`
+		Links   *Links    `header:"-" json:"links,omitempty"`
 	}{}
 
 	result, err := api.Invoke(http.MethodGet, "./v3/auth/system", true, nil, output)

@@ -38,14 +38,12 @@ type API struct {
 // base path configured, the given "url" can be relative to it; it can also be a
 // full URI; the HTTP "method" identifies the kind of API request. The request
 // is prepared by the provided "builder" using the information contained in the
-// "input" parameter, which can have tagged fields for query parameters (`url`),
-// for HTTP headers (`header`) and for the request entity in the body (`json`);
-// the response is handled by the user-provided "handler" and translated into
-// headers and an entity as per the tags in the "output" interface. Both the
-// "input" and the "output" parameters would usually be structs (although no
-// check is performed since it can also be used by the user-provided builder,
-// which could expect anything. If no "builder" or no "handler" is provided, the
-// method uses their default implementations which relies on tags as noted above.
+// "input" parameter, which can have tagged fields for query parameters
+// (`parameter`), for HTTP headers (`header`) and for the request entity in the
+// body (`json`); the response is handled by a default handler and translated
+// into values stored into the "output" struct according to their tagging:
+// `header` for headers and `json` for body. Both the "input" and the "output"
+// parameters must be structs, or the method panics.
 func (api *API) Invoke(method string, url string, authenticated bool, input interface{}, output interface{}) (*Result, error) {
 
 	//log.Debugf("calling method %q on URL %q", method, url)
@@ -75,8 +73,8 @@ func (api *API) Invoke(method string, url string, authenticated bool, input inte
 }
 
 // PrepareRequest uses information in the input struct to populate HTTP query
-// parameters (any field that is tagged with `url` will become a parameter),
-// headers (fields tagged with `header` will be used to pupolate request headers)
+// parameters (any field that is tagged with `parameter` will become a parameter),
+// headers (fields tagged with `header` will be used to populate request headers)
 // and the entity in the request body (fields tagged with `json`). All three are
 // optional; if this is the case, pass nil for "input".
 func (api *API) PrepareRequest(method string, url string, authenticated bool, input interface{}) (*http.Request, error) {
@@ -122,8 +120,8 @@ func (api *API) PrepareRequest(method string, url string, authenticated bool, in
 
 // HandleResponse parses the HTTP response to an API call and populates the
 // "output" struct fields; fields tagged with `header` will be populated using
-// the corresponding header value if present; fields tagged with `json` will be
-// populated by unmasìrshalling JSON values in the response. Both are optional;
+// the corresponding header value(s) if present; fields tagged with `json` will
+// be populated by unmarshalling JSON values in the response. Both are optional;
 // if so, pass in nil for "output".
 func (api *API) HandleResponse(response *http.Response, output interface{}) (*Result, error) {
 
@@ -142,7 +140,6 @@ func (api *API) HandleResponse(response *http.Response, output interface{}) (*Re
 	}
 
 	if output != nil {
-
 		if reflect.TypeOf(output).Elem().Kind() != reflect.Struct {
 			panic("only structs can be passed as API output")
 		}
@@ -178,6 +175,5 @@ func (api *API) HandleResponse(response *http.Response, output interface{}) (*Re
 			log.Infof("response entity:\n%s", log.ToJSON(output))
 		}
 	}
-
 	return NewResult(response, data), nil
 }
