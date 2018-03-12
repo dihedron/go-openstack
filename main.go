@@ -242,7 +242,7 @@ func (os *OpenStack) listUsers() *[]openstack.User {
 		// },
 	}
 
-	log.Debugf("entity is:\n%s", log.ToJSON(opts))
+	//log.Debugf("entity is:\n%s", log.ToJSON(opts))
 
 	log.Debugf("invoking API...")
 
