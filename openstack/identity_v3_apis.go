@@ -352,3 +352,34 @@ func (api *IdentityV3API) ListSystems() (*[]System, *Result, error) {
 	}
 	return nil, result, err
 }
+
+/*
+ * LIST USERS
+ */
+
+// ListUsersOptions provides all the options available for filtering the list
+// of registered users.
+type ListUsersOptions struct {
+	DomainID           *string     `parameter:"domain_id,omitempty" header:"-" json:"-"`
+	Enabled            *bool       `parameter:"enabled,omitempty" header:"-" json:"-"`
+	IdentityProviderID *string     `parameter:"idp_id,omitempty" header:"-" json:"-"`
+	Name               *string     `parameter:"name,omitempty" header:"-" json:"-"`
+	PasswordExpiresAt  *TimeFilter `parameter:"password_expires_at,omitempty" header:"-" json:"-"`
+	ProtocolID         *string     `parameter:"protocol_id,omitempty" header:"-" json:"-"`
+	UniqueID           *string     `parameter:"unique_id,omitempty" header:"-" json:"-"`
+}
+
+// ListUsers returns the list of users on the system.
+func (api *IdentityV3API) ListUsers(opts *ListUsersOptions) (*[]User, *Result, error) {
+	output := &struct {
+		Users *[]User `header:"-" json:"users,omitempty"`
+		Links *Links  `header:"-" json:"links,omitempty"`
+	}{}
+
+	result, err := api.Invoke(http.MethodGet, "./v3/users", true, opts, output)
+	log.Debugf("result is %v (%v)", result, err)
+	if result.Code == 200 {
+		return output.Users, result, err
+	}
+	return nil, result, err
+}

@@ -11,17 +11,12 @@ import (
 	"github.com/dihedron/go-openstack/openstack"
 )
 
-// https://developer.openstack.org/sdks/python/openstacksdk/users/profile.html#openstack.profile.Profile
-func main() {
+// OpenStack represents the OpenStack client.
+type OpenStack struct {
+	client *openstack.Client
+}
 
-	log.SetLevel(log.DBG)
-	log.SetStream(os.Stdout, true)
-	log.SetTimeFormat("15:04:05.000")
-
-	log.Debugf("+-------------------------------------------------------------------+")
-	log.Debugf("|                             LOGIN                                 |")
-	log.Debugf("+-------------------------------------------------------------------+")
-
+func newClient() *OpenStack {
 	endpoint := os.Getenv("OS_AUTH_URL")
 	if endpoint == "" {
 		if len(os.Args) >= 2 {
@@ -30,31 +25,54 @@ func main() {
 			endpoint = "http://192.168.56.101/identity/" // my shiny devstack :-)
 		}
 	}
+	client := &OpenStack{
+		client: openstack.NewDefaultClient(endpoint),
+	}
+	return client
+}
 
-	opts1 := &openstack.LoginOptions{
+func (os *OpenStack) close() error {
+	if os.client != nil {
+		return os.client.Close()
+	}
+	return nil
+}
+
+func (os *OpenStack) doScopedLoginTo(project string) {
+	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                         SCOPED LOGIN                              |")
+	log.Debugf("+-------------------------------------------------------------------+")
+
+	opts := &openstack.LoginOptions{
+		UserName:         openstack.String("admin"),
+		UserDomainName:   openstack.String("Default"),
+		UserPassword:     openstack.String("password"),
+		ScopeProjectName: openstack.String(project),
+		ScopeDomainName:  openstack.String("Default"),
+	}
+	os.client.Connect(opts)
+}
+
+func (os *OpenStack) doUnscopedLogin() {
+	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                        UNSCOPED LOGIN                             |")
+	log.Debugf("+-------------------------------------------------------------------+")
+
+	opts := &openstack.LoginOptions{
 		UserName:       openstack.String("admin"),
 		UserDomainName: openstack.String("Default"),
 		UserPassword:   openstack.String("password"),
-		//UnscopedLogin:  openstack.Bool(true),
-		//ScopeProjectName: openstack.String("admin"),
-		ScopeProjectName: openstack.String("demo"),
-		ScopeDomainName:  openstack.String("Default"),
+		UnscopedLogin:  openstack.Bool(true),
 	}
+	os.client.Connect(opts)
+}
 
-	client := openstack.NewDefaultClient(endpoint)
-	//client.LoadProfileFrom("./my-profile.json")
-	client.Connect(opts1)
-	defer client.Close()
-
-	os.Exit(0)
-
-	//time.Sleep(10 * time.Second)
-
+func (os *OpenStack) createToken() *openstack.Token {
 	log.Debugf("+-------------------------------------------------------------------+")
 	log.Debugf("|                         CREATE TOKEN                              |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	opts2 := &openstack.CreateTokenOptions{
+	opts := &openstack.CreateTokenOptions{
 		NoCatalog:        openstack.Bool(true),
 		Authenticated:    true,
 		ScopeProjectName: openstack.String("admin"),
@@ -64,191 +82,215 @@ func main() {
 		UserPassword:     openstack.String("password"),
 	}
 
-	token, result, err := client.IdentityV3().CreateToken(opts2)
+	token, result, err := os.client.IdentityV3().CreateToken(opts)
 	log.Debugf("token is %q\n", *token.Value)
 	log.Debugf("token is\n%s\n", log.ToJSON(token))
 	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
 		log.Debugf("call resulted in %v\n", err)
 	}
+	return token
+}
 
+func (os *OpenStack) readToken(tokenValue string) *openstack.Token {
 	log.Debugf("+-------------------------------------------------------------------+")
 	log.Debugf("|                          READ TOKEN                               |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	opts3 := &openstack.ReadTokenOptions{
+	opts := &openstack.ReadTokenOptions{
 		AllowExpired: openstack.Bool(true),
 		NoCatalog:    openstack.Bool(false),
-		SubjectToken: *token.Value,
+		SubjectToken: tokenValue,
 	}
-	token, result, err = client.IdentityV3().ReadToken(opts3)
+	token, result, err := os.client.IdentityV3().ReadToken(opts)
 	log.Debugf("token is %q\n", *token.Value)
 	log.Debugf("token is\n%s\n", log.ToJSON(token))
 	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
 		log.Debugf("call resulted in %v\n", err)
 	}
+	return token
+}
 
+func (os *OpenStack) checkToken(tokenValue string) bool {
 	log.Debugf("+-------------------------------------------------------------------+")
 	log.Debugf("|                          CHECK TOKEN                              |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	opts4 := &openstack.CheckTokenOptions{
+	opts := &openstack.CheckTokenOptions{
 		AllowExpired: openstack.Bool(true),
-		SubjectToken: *token.Value,
+		SubjectToken: tokenValue,
 	}
-	ok, result, err := client.IdentityV3().CheckToken(opts4)
+	ok, result, err := os.client.IdentityV3().CheckToken(opts)
 	log.Debugf("token valid: %t\n", ok)
 	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
 		log.Debugf("call resulted in %v\n", err)
 	}
+	return ok
+}
 
+func (os *OpenStack) deleteToken(tokenValue string) bool {
+	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                          DELETE TOKEN                             |")
+	log.Debugf("+-------------------------------------------------------------------+")
+
+	opts := &openstack.DeleteTokenOptions{
+		SubjectToken: tokenValue,
+	}
+	ok, result, err := os.client.IdentityV3().DeleteToken(opts)
+	log.Debugf("token valid: %t\n", ok)
+	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
+	if err != nil {
+		log.Debugf("call resulted in %v\n", err)
+	}
+	return ok
+}
+
+func (os *OpenStack) createAppCredential() *openstack.Token {
+	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                        APP CREDENTIALS                            |")
+	log.Debugf("+-------------------------------------------------------------------+")
+
+	opts := &openstack.CreateTokenOptions{
+		//NoCatalog:        openstack.Bool(false),
+		Authenticated:    true,
+		ScopeProjectName: openstack.String("admin"),
+		ScopeDomainName:  openstack.String("Default"),
+		UserName:         openstack.String("admin"),
+		UserDomainName:   openstack.String("Default"),
+		UserPassword:     openstack.String("password"),
+	}
+
+	token, result, err := os.client.IdentityV3().CreateToken(opts)
+	log.Debugf("token is %q\n", *token.Value)
+	log.Debugf("token is\n%s\n", log.ToJSON(token))
+	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
+	if err != nil {
+		log.Debugf("call resulted in %v\n", err)
+	}
+	return token
+}
+
+func (os *OpenStack) getCatalog() *[]openstack.Service {
 	log.Debugf("+-------------------------------------------------------------------+")
 	log.Debugf("|                          GET CATALOG                              |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	catalog, result, err := client.IdentityV3().ReadCatalog()
+	catalog, result, err := os.client.IdentityV3().ReadCatalog()
 	log.Debugf("catalog is:\n%s\n", log.ToJSON(catalog))
 	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
 		log.Debugf("call resulted in %v\n", err)
 	}
+	return catalog
+}
 
+func (os *OpenStack) listProjects() *[]openstack.Project {
 	log.Debugf("+-------------------------------------------------------------------+")
-	log.Debugf("|                         GET PROJECTS                              |")
+	log.Debugf("|                         LIST PROJECTS                             |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	projects, result, err := client.IdentityV3().ListProjects()
+	projects, result, err := os.client.IdentityV3().ListProjects()
 	log.Debugf("projects are:\n%s\n", log.ToJSON(projects))
 	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
 		log.Debugf("call resulted in %v\n", err)
 	}
+	return projects
+}
 
+func (os *OpenStack) listDomains() *[]openstack.Domain {
 	log.Debugf("+-------------------------------------------------------------------+")
-	log.Debugf("|                          GET DOMAINS                              |")
+	log.Debugf("|                          LIST DOMAINS                             |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	domains, result, err := client.IdentityV3().ListDomains()
+	domains, result, err := os.client.IdentityV3().ListDomains()
 	log.Debugf("domains are:\n%s\n", log.ToJSON(domains))
 	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
 		log.Debugf("call resulted in %v\n", err)
 	}
+	return domains
+}
 
-	//time.Sleep(10 * time.Second)
-
-	// log.Debugf("+-------------------------------------------------------------------+")
-	// log.Debugf("|                          GET SYSTEMS                              |")
-	// log.Debugf("+-------------------------------------------------------------------+")
-
-	// systems, result, err := client.IdentityV3().ReadSystems()
-	// log.Debugf("systems are:\n%s\n", log.ToJSON(systems))
-	// log.Debugf("result is %d (%s)\n", result.Code, result.Status)
-	// if err != nil {
-	// 	log.Debugf("call resulted in %v\n", err)
-	// }
-
+func (os *OpenStack) listSystems() *[]openstack.System {
 	log.Debugf("+-------------------------------------------------------------------+")
-	log.Debugf("|                        APP CREDENTIALS                            |")
+	log.Debugf("|                          GET SYSTEMS                              |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	// opts5 := &openstack.CreateTokenOptions{
-	// 	NoCatalog:        false,
-	// 	Authenticated:    true,
-	// 	ScopeProjectName: openstack.String("admin"),
-	// 	ScopeDomainName:  openstack.String("Default"),
-	// 	UserName:         openstack.String("admin"),
-	// 	UserDomainName:   openstack.String("Default"),
-	// 	UserPassword:     openstack.String("password"),
-	// }
-
-	// token, result, err := client.IdentityV3().CreateToken(opts2)
-	// log.Debugf("token is %q\n", *token.Value)
-	// log.Debugf("token is\n%s\n", log.ToJSON(token))
-	// log.Debugf("result is %d (%s)\n", result.Code, result.Status)
-	// if err != nil {
-	// 	log.Debugf("call resulted in %v\n", err)
-	// }
-
-	log.Debugf("+-------------------------------------------------------------------+")
-	log.Debugf("|                          DELETE TOKEN                             |")
-	log.Debugf("+-------------------------------------------------------------------+")
-
-	opts5 := &openstack.DeleteTokenOptions{
-		SubjectToken: *token.Value,
-	}
-	ok, result, err = client.IdentityV3().DeleteToken(opts5)
-	log.Debugf("token valid: %t\n", ok)
+	systems, result, err := os.client.IdentityV3().ListSystems()
+	log.Debugf("systems are:\n%s\n", log.ToJSON(systems))
 	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
 		log.Debugf("call resulted in %v\n", err)
 	}
+	return systems
+}
 
-	//client.Rea
+func (os *OpenStack) listUsers() *[]openstack.User {
+	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                          LIST USERS                               |")
+	log.Debugf("+-------------------------------------------------------------------+")
 
-	//client.InitProfile()
-	//client.SaveProfileTo("./go-openstack-profile.json")
+	opts := &openstack.ListUsersOptions{
+		Enabled: openstack.Bool(true),
+		Name:    openstack.String("neutron"),
+		// PasswordExpiresAt: &openstack.TimeFilter{
+		// 	Operator:  openstack.GT,
+		// 	Timestamp: time.Now(),
+		// },
+	}
 
-	// ropts := &openstack.ReadTokenOpts{
-	// 	AllowExpired: true,
-	// 	NoCatalog:    false,
-	// 	SubjectToken: *client.Authenticator.TokenValue,
+	log.Debugf("entity is:\n%s", log.ToJSON(opts))
+
+	log.Debugf("invoking API...")
+
+	users, result, err := os.client.IdentityV3().ListUsers(opts)
+	if users != nil {
+		for _, user := range *users {
+			log.Debugf("user: %s", log.ToJSON(user))
+		}
+	}
+	// log.Debugf("users is %q\n", *token.Value)
+	// log.Debugf("token is\n%s\n", log.ToJSON(token))
+	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
+	if err != nil {
+		log.Debugf("call resulted in %v\n", err)
+	}
+	return users
+
+}
+
+// https://developer.openstack.org/sdks/python/openstacksdk/users/profile.html#openstack.profile.Profile
+func main() {
+
+	log.SetLevel(log.DBG)
+	log.SetStream(os.Stdout, true)
+	log.SetTimeFormat("15:04:05.000")
+
+	sdk := newClient()
+	//defer sdk.close()
+
+	//client.LoadProfileFrom("./my-profile.json")
+
+	sdk.doScopedLoginTo("admin")
+	// token1 := sdk.createToken()
+	// token2 := sdk.readToken(*token1.Value)
+	// if sdk.checkToken(*token2.Value) {
+	// 	log.Debugf("token is OK")
+	// } else {
+	// 	log.Debugf("token is KO")
 	// }
-	// if ok, _, _ := client.Identity.ReadToken(rops); ok {
-	// 	log.Debug("token read")
-	// }
+	// sdk.listProjects()
+	//sdk.listDomains()
+	// TODO: the following requires queens
+	// sdk.listSystems()
 
-	// client.Authenticator.Login(opts)
+	sdk.listUsers()
 
-	//client.Authenticator.Logout()
+	// token2 is a copy of token1
+	// sdk.deleteToken(*token1.Value)
 
-	// copts := &openstack.CreateTokenOpts{
-	// 	/*
-	// 		Method: openstack.CreateTokenMethodToken,
-	// 		TokenID:         openstack.String("gAAAAABaZgmbPZtoEyuTzJXmggwMAyjLZSiknQJPeR4m1FQaL0dpv1nvvVZvd-B3PORQnRqXrR3OevmRKvMqrXwiam02xElVJXOQHKkExqpTK4kkBnttb-kZRxyS3AJLTLjOr7rxzGP2jw7OwGfOclzNxRIRZF00Ha88ApD0iNFKBczP9PBv4A8"),
-	// 		ScopeDomainName: openstack.String("Default"),
-	// 	*/
-
-	// 	Method: "password",
-	// 	//NoCatalog:      true,
-	// 	UserName:       openstack.String("admin"),
-	// 	UserDomainName: openstack.String("Default"),
-	// 	UserPassword:   openstack.String("password"),
-	// 	//ScopeProjectID: openstack.String("0877bbc0712043639e29f026cd56b9c7"),
-	// 	/*
-	// 		//ScopeProjectName: openstack.String("admin"),
-	// 		//ScopeDomainName:  openstack.String("Default"),
-	// 		//ScopeProjectName: openstack.String("demo"),
-	// 		//ScopeDomainID:    openstack.String("default"),
-	// 		//UnscopedToken: openstack.Bool(true),
-	// 	*/
-	// }
-	// token, header, _, _ := client.Identity.CreateToken(copts)
-	// log.Debugf("token: %s\ntoken info:\n%s\n", header, log.ToJSON(token))
-
-	// log.Debugf("-----------------------------------------------------\n")
-
-	// ropts := &openstack.ReadTokenOpts{
-	// 	SubjectToken: token,
-	// }
-	// client.Identity.ReadToken(token, ropts)
-
-	// log.Debugf("-----------------------------------------------------\n")
-
-	// vopts := &openstack.CheckTokenOpts{
-	// 	SubjectToken: token,
-	// }
-	// client.Identity.CheckToken(token, vopts)
-
-	// log.Debugf("-----------------------------------------------------\n")
-
-	// token2, _, _ := client.Identity.CreateToken(copts)
-	// dopts := &openstack.DeleteTokenOpts{
-	// 	SubjectToken: token,
-	// }
-	// client.Identity.DeleteToken(token2, dopts)
-	// client.Identity.CheckToken(token2, vopts)
-
+	// time.Sleep(10 * time.Second)
 }

@@ -4,6 +4,11 @@
 
 package openstack
 
+import (
+	"fmt"
+	"time"
+)
+
 // Bool returns a pointer to a boolean value that is safe
 // to be used in OpenStack API structs.
 func Bool(value bool) *bool {
@@ -126,3 +131,59 @@ func StringSlice(value []string) *[]string {
 
 // ISO8601 is the format of OpenStack timestamps.
 const ISO8601 string = "2006-01-02T15:04:05.000000Z"
+
+// Operator is the type of operators used for comparisons.
+type Operator int8
+
+// String returns the operator as a string prepresentation; this is used in
+// HTTP query parameters that represent time filters.
+func (op Operator) String() string {
+	switch op {
+	case EQ:
+		return "eq"
+	case LT:
+		return "lt"
+	case LTE:
+		return "lte"
+	case GT:
+		return "gt"
+	case GTE:
+		return "gte"
+	case NE:
+		return "ne"
+	}
+	return ""
+}
+
+const (
+	// EQ is the constant used to indicate that some entity is "equal to" some
+	// other reference or provided value.
+	EQ Operator = iota
+	// LT is the constant used to indicate that some entity is "less than" some
+	// other reference or provided value.
+	LT
+	// LTE is the constant used to indicate that some entity is "less than or
+	// equal to" some other reference or provided value.
+	LTE
+	// GTE is the constant used to indicate that some entity is "greater than or
+	// equal to" some other reference or provided value.
+	GTE
+	// GT is the constant used to indicate that some entity is "greater than"
+	// some other reference or provided value.
+	GT
+	// NE is the constant used to indicate that some entity is "not equal to"
+	// some other reference or provided value.
+	NE
+)
+
+// TimeFilter is used to provide time-based filters in API calls, e.g. retrieving
+// only those users whose passwords expire after (GT) a certain date.
+type TimeFilter struct {
+	Timestamp time.Time
+	Operator  Operator
+}
+
+// String returns a TimeFilter as an acceptable query parameter.
+func (tf TimeFilter) String() string {
+	return fmt.Sprintf("%v:%v", tf.Operator, tf.Timestamp.Format(ISO8601))
+}

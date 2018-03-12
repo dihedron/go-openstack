@@ -11,7 +11,7 @@
   branch = "master"
   name = "github.com/dihedron/go-request"
   packages = ["."]
-  revision = "73e69004a96d838400944fe3b1b115486af41508"
+  revision = "488e3e543120991795a223ba58c43e11bb833886"
 
 [[projects]]
   name = "github.com/fatih/color"
@@ -41,7 +41,7 @@
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "7dca6fe1f43775aa6d1334576870ff63f978f539"
+  revision = "c28acc882ebcbfbe8ce9f0f14b9ac26ee138dd51"
 
 [solve-meta]
   analyzer-name = "dep"

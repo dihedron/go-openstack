@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/dihedron/go-log"
 	"github.com/fatih/structs"
 )
 
@@ -463,41 +464,19 @@ func getValuesFrom(tag string, source interface{}) map[string][]string {
 
 func getValuesFromStruct(tag string, source interface{}) map[string][]string {
 	result := map[string][]string{}
-outer:
-	for tagValue, values := range scan(tag, source) {
-		omitempty := false
-		key := ""
-		for _, k := range strings.Split(tagValue, ",") {
-			switch strings.TrimSpace(k) {
-			case "omitempty":
-				omitempty = true
-			case "-":
-				continue outer
-			default:
-				key = k
-			}
-		}
-
+	for key, values := range scan(tag, source) {
+		// log.Debugf("tag is %q", key)
 		for _, value := range values {
-			if reflect.ValueOf(value).Kind() == reflect.Ptr {
-				if !reflect.ValueOf(value).IsNil() {
-					s := fmt.Sprintf("%v", reflect.ValueOf(value).Elem().Interface())
-					if !omitempty || len(s) > 0 {
-						if _, ok := result[key]; !ok {
-							result[key] = []string{}
-						}
-						result[key] = append(result[key], s)
-					}
-				}
+			s := ""
+			if reflect.ValueOf(value).Kind() == reflect.Ptr && !reflect.ValueOf(value).IsNil() {
+				s = fmt.Sprintf("%v", reflect.ValueOf(value).Elem().Interface())
 			} else {
-				s := fmt.Sprintf("%v", value)
-				if !omitempty || len(s) > 0 {
-					if _, ok := result[key]; !ok {
-						result[key] = []string{}
-					}
-					result[key] = append(result[key], s)
-				}
+				s = fmt.Sprintf("%v", value)
 			}
+			if _, ok := result[key]; !ok {
+				result[key] = []string{}
+			}
+			result[key] = append(result[key], s)
 		}
 	}
 	return result
@@ -520,31 +499,101 @@ func addQueryParameters(requestURL *url.URL, parameters url.Values) (*url.URL, e
 }
 
 // scan is the actual workhorse method: it scans the source struct for tagged
-// headers and extracts their values; if any embedded or child struct is
-// encountered, it is scanned for values.
+// fields and extracts their values; its behaviour is the following:
+// - untagged embedded structs, child structs and pointers to structs are scanned
+//   recursively
+// - tagged embedded structs, child structs and pointers to structs are converted
+//   to string, provided they implement the Stringer interface, otherwise they
+//   are ignored.
+// - all other tagged values are extracted.
 func scan(key string, source interface{}) map[string][]interface{} {
 	result := map[string][]interface{}{}
 	for _, field := range structs.Fields(source) {
-		if field.IsEmbedded() || field.Kind() == reflect.Struct ||
-			(field.Kind() == reflect.Ptr && reflect.ValueOf(field.Value()).Elem().Kind() == reflect.Struct) {
-			for k, v := range scan(key, field.Value()) {
-				if values, ok := result[k]; ok {
-					result[k] = append(values, v...)
-				} else {
-					result[k] = v
+		log.Debugf("analysing field %q for tag `%s`...", field.Name(), key)
+		tag := NewTag(field.Tag(key))
+		if tag.IsMissing() {
+			// untagged field
+			log.Debugf("... tag is missing")
+			if field.Kind() == reflect.Struct {
+				// recurse
+				log.Debugf("... field is a struct, recursing...")
+				for k, v := range scan(key, field.Value()) {
+					if values, ok := result[k]; ok {
+						result[k] = append(values, v...)
+					} else {
+						result[k] = v
+					}
 				}
+			} else if field.Kind() == reflect.Ptr && reflect.ValueOf(field.Value()).Elem().Kind() == reflect.Struct {
+				log.Debugf("... field is a struct pointer, recursing...")
+				for k, v := range scan(key, reflect.ValueOf(field.Value()).Elem().Interface()) {
+					if values, ok := result[k]; ok {
+						result[k] = append(values, v...)
+					} else {
+						result[k] = v
+					}
+				}
+			} else {
+				// ignore
+				log.Debugf("... untagged field or type %T, skipping...", field.Value())
+				continue
 			}
+		} else if tag.IsIgnore() {
+			// ignore
+			log.Debugf("... field is tagged with \"-\" (type: %T), skipping...", field.Value())
+			continue
 		} else {
-			tag := field.Tag(key)
-			if tag != "" {
-				value := field.Value()
-				if values, ok := result[tag]; ok {
-					result[tag] = append(values, value)
-				} else {
-					result[tag] = []interface{}{value}
-				}
+			// tagged field
+			k := tag.Name()
+			log.Debugf("... field is tagged with %q (type: %T)", k, field.Value())
+			var value interface{}
+			if field.Kind() == reflect.Struct {
+				log.Debugf("... field is a struct, adding as is under %q...", k)
+				value = field.Value()
+			} else if field.Kind() == reflect.Ptr && reflect.ValueOf(field.Value()).Elem().Kind() == reflect.Struct {
+				log.Debugf("... field is a struct pointer, adding after dereferencing under %q...", k)
+				value = reflect.ValueOf(field.Value()).Elem().Interface()
+			} else if isNilReferenceType(field.Value()) && tag.IsOmitEmpty() {
+				// ignore nil omitempty fields
+				log.Debugf("... field is nil reference and has \"omitempty\" (type: %T), skipping...", field.Value())
+				continue
+			} else if field.IsZero() && tag.IsOmitEmpty() {
+				// ignore zero values for omitempty fields
+				log.Debugf("... field is zero value and has \"omitempty\" (type: %T), skipping...", field.Value())
+				continue
+			} else if isZeroReferenceType(field.Value()) {
+				log.Debugf("... field is pointer to zero value and has \"omitempty\" (type: %T), skipping...", field.Value())
+				continue
+			} else {
+				log.Debugf("... field is a final value, adding as is under %q...", k)
+				value = field.Value()
+			}
+			if values, ok := result[k]; ok {
+				result[k] = append(values, value)
+			} else {
+				result[k] = []interface{}{value}
 			}
 		}
 	}
 	return result
+}
+
+func isNilReferenceType(value interface{}) bool {
+	if value == nil {
+		return true
+	}
+	switch reflect.ValueOf(value).Kind() {
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.Interface, reflect.Slice:
+		return reflect.ValueOf(value).IsNil()
+	}
+	return false
+}
+
+func isZeroReferenceType(value interface{}) bool {
+	if reflect.ValueOf(value).Kind() == reflect.Ptr {
+		current := reflect.ValueOf(value).Elem().Interface()
+		zero := reflect.Zero(reflect.ValueOf(current).Type()).Interface()
+		return reflect.DeepEqual(current, zero)
+	}
+	return false
 }
