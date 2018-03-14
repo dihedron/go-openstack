@@ -358,7 +358,7 @@ func (api *IdentityV3API) ListSystems() (*[]System, *Result, error) {
  */
 
 // ListUsersOptions provides all the options available for filtering the list
-// of registered users.
+// of registered users (see https://developer.openstack.org/api-ref/identity/v3/#list-users)
 type ListUsersOptions struct {
 	DomainID           *string     `parameter:"domain_id,omitempty" header:"-" json:"-"`
 	Enabled            *bool       `parameter:"enabled,omitempty" header:"-" json:"-"`
@@ -369,7 +369,8 @@ type ListUsersOptions struct {
 	UniqueID           *string     `parameter:"unique_id,omitempty" header:"-" json:"-"`
 }
 
-// ListUsers returns the list of users on the system.
+// ListUsers returns the list of users on the system (see also
+// https://developer.openstack.org/api-ref/identity/v3/#list-users)
 func (api *IdentityV3API) ListUsers(opts *ListUsersOptions) (*[]User, *Result, error) {
 	output := &struct {
 		Users *[]User `header:"-" json:"users,omitempty"`
@@ -380,6 +381,31 @@ func (api *IdentityV3API) ListUsers(opts *ListUsersOptions) (*[]User, *Result, e
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.Users, result, err
+	}
+	return nil, result, err
+}
+
+/*
+ * CREATE USER
+ */
+
+// CreateUserOptions provides all the options available for creating a new user
+// (see https://developer.openstack.org/api-ref/identity/v3/#create-user).
+type CreateUserOptions struct {
+	User *User `parameter:"-" header:"-" json:"user"`
+}
+
+// CreateUser creates a new user; for implementation details see also
+// https://developer.openstack.org/api-ref/identity/v3/#create-user.
+func (api *IdentityV3API) CreateUser(opts *CreateUserOptions) (*User, *Result, error) {
+	output := &struct {
+		User *User `header:"-" json:"user,omitempty"`
+	}{}
+
+	result, err := api.Invoke(http.MethodPost, "./v3/users", true, opts, output)
+	log.Debugf("result is %v (%v)", result, err)
+	if result.Code == 200 {
+		return output.User, result, err
 	}
 	return nil, result, err
 }
