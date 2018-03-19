@@ -110,7 +110,7 @@ func (api *IdentityV3API) CreateToken(opts *CreateTokenOptions) (*Token, *Result
 
 	input.Auth.Scope = initCreateTokenOptionsScope(opts)
 
-	// log.Debugf("entity in request body is\n%s\n", log.ToJSON(input))
+	//log.Debugf("entity in request body is\n%s\n", log.ToJSON(input))
 
 	output := &struct {
 		SubjectToken *string `parameter:"-" header:"X-Subject-Token" json:"-"`
@@ -404,11 +404,15 @@ func (api *IdentityV3API) CreateUser(opts *CreateUserOptions) (*User, *Result, e
 
 	result, err := api.Invoke(http.MethodPost, "./v3/users", true, opts, output)
 	log.Debugf("result is %v (%v)", result, err)
-	if result.Code == 200 {
+	if result.Code == 201 {
 		return output.User, result, err
 	}
 	return nil, result, err
 }
+
+/*
+ * READ USER
+ */
 
 // ReadUser retrieves the information about the user identified by the given
 // user id; see also https://developer.openstack.org/api-ref/identity/v3/#show-user-details
@@ -425,6 +429,80 @@ func (api *IdentityV3API) ReadUser(userid string) (*User, *Result, error) {
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.User, result, err
+	}
+	return nil, result, err
+}
+
+/*
+ * UPDATE USER
+ */
+
+// UpdateUserOptions provides all the options available for updating an existing user
+// (see https://developer.openstack.org/api-ref/identity/v3/#update-user).
+type UpdateUserOptions struct {
+	UserID string `parameter:"-" header:"-" variable:"userid" json:"-"`
+	User   *User  `parameter:"-" header:"-" json:"user"`
+}
+
+// UpdateUser updates an existing user; for implementation details see also
+// https://developer.openstack.org/api-ref/identity/v3/#update-user.
+func (api *IdentityV3API) UpdateUser(opts *UpdateUserOptions) (*User, *Result, error) {
+	output := &struct {
+		User *User `header:"-" json:"user,omitempty"`
+	}{}
+
+	result, err := api.Invoke(http.MethodPatch, "./v3/users/{userid}", true, opts, output)
+	log.Debugf("result is %v (%v)", result, err)
+	if result.Code == 200 {
+		return output.User, result, err
+	}
+	return nil, result, err
+}
+
+/*
+ * DELETE USER
+ */
+
+// DeleteUser removes the user identified by the given user id; see also
+// https://developer.openstack.org/api-ref/identity/v3/#show-user-details
+func (api *IdentityV3API) DeleteUser(userid string) (bool, *Result, error) {
+	input := &struct {
+		UserID string `parameter:"-" header:"-" variable:"userid" json:"-"`
+	}{
+		UserID: userid,
+	}
+	// output := &struct {
+	// 	User *User `header:"-" json:"user,omitempty"`
+	// }{}
+	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}", true, input, nil)
+	log.Debugf("result is %v (%v)", result, err)
+	if result.Code == 204 {
+		return true, result, err
+	}
+	return false, result, err
+}
+
+/*
+ * LIST USER GROUPS
+ */
+
+// https://developer.openstack.org/api-ref/identity/v3/#list-groups
+// ReadUser retrieves the information about the user identified by the given
+// user id; see also https://developer.openstack.org/api-ref/identity/v3/#show-user-details
+func (api *IdentityV3API) ListUserGroups(userid string) (*[]Group, *Result, error) {
+	input := &struct {
+		UserID string `parameter:"-" header:"-" variable:"userid" json:"-"`
+	}{
+		UserID: userid,
+	}
+	output := &struct {
+		Groups *[]Group `header:"-" json:"groups,omitempty"`
+		Links  *Links   `header:"-" json:"links,omitempty"`
+	}{}
+	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}/groups", true, input, output)
+	log.Debugf("result is %v (%v)", result, err)
+	if result.Code == 200 {
+		return output.Groups, result, err
 	}
 	return nil, result, err
 }

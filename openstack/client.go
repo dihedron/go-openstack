@@ -133,7 +133,7 @@ func (c *Client) Connect(opts *LoginOptions) error {
 
 	err := c.Authenticator.Login(opts)
 	if err != nil {
-		log.Errorf("error logging in to the identity service at %q", c.Authenticator.AuthURL)
+		log.Errorf("error logging in to the identity service at %q", *c.Authenticator.AuthURL)
 		return err
 	}
 

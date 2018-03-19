@@ -578,6 +578,10 @@ func bindVariables(u *url.URL, variables map[string]string) string {
 		log.Debugf("... buffer now: %q", buffer.String())
 		pivot = match[1]
 	}
+	if pivot < len(s) {
+		log.Debugf("... appending final token: %q", s[pivot+1:])
+	}
+	buffer.WriteString(s[pivot:])
 	s = buffer.String()
 	log.Debugf("URL bound to variables, returning %q", s)
 	return s

@@ -61,6 +61,19 @@ type Endpoint struct {
 	URL       *string `json:"url,omitempty"`
 }
 
+// Group is a collection of users. Each group is owned by a domain. You can use
+// groups to ease the task of managing role assignments for users. Assigning a
+// role to a group on a project or domain is equivalent to assigning the role to
+// each group member on that project or domain. See also
+// https://developer.openstack.org/api-ref/identity/v3/#list-groups.
+type Group struct {
+	ID          *string `json:"id,omitempty"`
+	Name        *string `json:"name,omitempty"`
+	DomainID    *string `json:"domain_id,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Links       *Links  `json:"links,omitempty"`
+}
+
 // Identity represents an identity, as granted by the Identity service to a
 // user providing the given password, token or application credential with the
 // given authentication method.

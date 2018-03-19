@@ -281,6 +281,20 @@ func (os *OpenStack) readUser(userid string) *openstack.User {
 
 }
 
+func (os *OpenStack) listUserGroups(userid string) *[]openstack.Group {
+	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                        LIST USER GROUPS                           |")
+	log.Debugf("+-------------------------------------------------------------------+")
+
+	groups, result, err := os.client.IdentityV3().ListUserGroups(userid)
+	log.Debugf("groups are:\n%s\n", log.ToJSON(groups))
+	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
+	if err != nil {
+		log.Debugf("call resulted in %v\n", err)
+	}
+	return groups
+}
+
 // https://developer.openstack.org/sdks/python/openstacksdk/users/profile.html#openstack.profile.Profile
 func main() {
 
@@ -308,7 +322,8 @@ func main() {
 
 	sdk.listUsers()
 
-	sdk.readUser("5665e7aa1ce84a0fa5d40a2a3644afc4")
+	user := sdk.readUser("a744cae9f0f7490d98e127b851c80857")
+	sdk.listUserGroups(*user.ID)
 
 	// token2 is a copy of token1
 	// sdk.deleteToken(*token1.Value)
