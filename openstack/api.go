@@ -54,7 +54,7 @@ func (api *API) Invoke(method string, url string, authenticated bool, input inte
 		return nil, err
 	}
 
-	log.Debugf("sending request...")
+	log.Debugf("sending request to %q...", request.URL.EscapedPath())
 	t0 := time.Now()
 	response, err := api.client.HTTPClient.Do(request)
 	if err != nil {
@@ -110,6 +110,7 @@ func (api *API) PrepareRequest(method string, url string, authenticated bool, in
 		builder.
 			Add().
 			QueryParametersFrom(input).
+			VariablesFrom(input).
 			HeadersFrom(input).
 			WithJSONEntity(input)
 

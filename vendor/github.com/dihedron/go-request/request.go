@@ -53,6 +53,12 @@ type Builder struct {
 	// query is a set of values set in the URL as query parameters.
 	parameters url.Values
 
+	// variables is the set of values that will be used to replace placeholder in
+	// the resource path, e.g. variable "id" in the following URL will be replaced
+	// using a value from the map: http://www.example.com/path/resource/{id};
+	// variables are populated in a way similar to that of headers and parameters.
+	variables map[string]string
+
 	// entity is the entity provider; it will be used to generate the request
 	// entity as an io.Reader. Moreover, it will be queried to set the request
 	// content type.
@@ -67,6 +73,7 @@ func New(url string) *Builder {
 		url:        url,
 		headers:    map[string][]string{},
 		parameters: map[string][]string{},
+		variables:  map[string]string{},
 	}
 }
 
@@ -78,6 +85,7 @@ func (f *Builder) New(method, url string) *Builder {
 		url:        f.url,
 		headers:    map[string][]string{},
 		parameters: map[string][]string{},
+		variables:  map[string]string{},
 		body:       f.body,
 	}
 	if method != "" {
@@ -98,6 +106,10 @@ func (f *Builder) New(method, url string) *Builder {
 		}
 		clone.parameters[key] = append(clone.parameters[key], values...)
 	}
+	for key, value := range f.variables {
+		clone.variables[key] = value
+	}
+
 	return clone
 }
 
@@ -214,6 +226,40 @@ func (f *Builder) QueryParameter(key string, values ...string) *Builder {
 func (f *Builder) QueryParametersFrom(source interface{}) *Builder {
 	for key, values := range getValuesFrom("parameter", source) {
 		f.QueryParameter(key, values...)
+	}
+	return f
+}
+
+// Variable adds, sets or removes the given value to the URL's variables; if the
+// variable is being removed, there is no need to specify the value; both setting
+// and adding a value for a given variable effectively replace its value.
+func (f *Builder) Variable(key string, value interface{}) *Builder {
+	if f.op == add || f.op == set {
+		f.variables[key] = fmt.Sprintf("%v", value)
+	} else if f.op == del {
+		delete(f.variables, key)
+	} else if f.op == rem {
+		re := regexp.MustCompile(key)
+		for key := range f.variables {
+			if re.MatchString(key) {
+				defer delete(f.variables, key)
+			}
+		}
+	}
+	return f
+}
+
+// VariablesFrom adds/sets or removes values extracted from a struct (and
+// tagged with "variable") or from a map[string]string to the URL's variables; if
+// the variables are being removed, there is no need to specify any value in the
+// input struct/map; if the variables are being reset, the keys are regarded as
+// regular expressions.
+func (f *Builder) VariablesFrom(source interface{}) *Builder {
+	for key, values := range getValuesFrom("variable", source) {
+		if len(values) > 0 {
+			// the last value wins
+			f.Variable(key, values[len(values)-1])
+		}
 	}
 	return f
 }
@@ -388,7 +434,10 @@ func (f *Builder) Make() (*http.Request, error) {
 		return nil, err
 	}
 
-	request, err := http.NewRequest(f.method, url.String(), f.body)
+	// replace variables
+	u := bindVariables(url, f.variables)
+
+	request, err := http.NewRequest(f.method, u, f.body)
 	if err != nil {
 		return nil, err
 	}
@@ -496,6 +545,42 @@ func addQueryParameters(requestURL *url.URL, parameters url.Values) (*url.URL, e
 	// url.Values formats to a sorted "url encoded" string, e.g. "key=val&foo=bar"
 	requestURL.RawQuery = qp.Encode()
 	return requestURL, nil
+}
+
+func bindVariables(u *url.URL, variables map[string]string) string {
+	re := regexp.MustCompile("\\{([_a-zA-Z]\\w*)\\}")
+	s, err := url.PathUnescape(u.String())
+	if err != nil {
+		log.Errorf("error parsing URL: %v", err)
+		return ""
+	}
+
+	log.Debugf("URL to bind: %q", s)
+	matches := re.FindAllStringIndex(s, -1)
+	if len(matches) == 0 {
+		log.Debugf("no variables to bind, returning %q", u.String())
+		return u.String()
+	}
+	var buffer bytes.Buffer
+	pivot := 0
+	for no, match := range matches {
+		log.Debugf("match %d: %v (pivot: %d)", no, match, pivot)
+		log.Debugf("... grabbing substring: %q", s[pivot:match[0]])
+		buffer.WriteString(s[pivot:match[0]])
+		key := s[match[0]+1 : match[1]-1]
+		log.Debugf("... binding %q", key)
+		if value, ok := variables[key]; ok {
+			log.Debugf("... with value %q", value)
+			buffer.WriteString(value)
+		} else {
+			buffer.WriteString(s[match[0]:match[1]])
+		}
+		log.Debugf("... buffer now: %q", buffer.String())
+		pivot = match[1]
+	}
+	s = buffer.String()
+	log.Debugf("URL bound to variables, returning %q", s)
+	return s
 }
 
 // scan is the actual workhorse method: it scans the source struct for tagged

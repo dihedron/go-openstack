@@ -235,7 +235,7 @@ func (os *OpenStack) listUsers() *[]openstack.User {
 
 	opts := &openstack.ListUsersOptions{
 		Enabled: openstack.Bool(true),
-		Name:    openstack.String("neutron"),
+		//Name:    openstack.String("neutron"),
 		// PasswordExpiresAt: &openstack.TimeFilter{
 		// 	Operator:  openstack.GT,
 		// 	Timestamp: time.Now(),
@@ -262,6 +262,25 @@ func (os *OpenStack) listUsers() *[]openstack.User {
 
 }
 
+func (os *OpenStack) readUser(userid string) *openstack.User {
+	log.Debugf("+-------------------------------------------------------------------+")
+	log.Debugf("|                          READ USER                                |")
+	log.Debugf("+-------------------------------------------------------------------+")
+
+	log.Debugf("invoking API...")
+
+	user, result, err := os.client.IdentityV3().ReadUser(userid)
+	if user != nil {
+		log.Debugf("user: %s", log.ToJSON(user))
+	}
+	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
+	if err != nil {
+		log.Debugf("call resulted in %v\n", err)
+	}
+	return user
+
+}
+
 // https://developer.openstack.org/sdks/python/openstacksdk/users/profile.html#openstack.profile.Profile
 func main() {
 
@@ -275,19 +294,21 @@ func main() {
 	//client.LoadProfileFrom("./my-profile.json")
 
 	sdk.doScopedLoginTo("admin")
-	// token1 := sdk.createToken()
-	// token2 := sdk.readToken(*token1.Value)
-	// if sdk.checkToken(*token2.Value) {
-	// 	log.Debugf("token is OK")
-	// } else {
-	// 	log.Debugf("token is KO")
-	// }
-	// sdk.listProjects()
-	//sdk.listDomains()
+	token1 := sdk.createToken()
+	token2 := sdk.readToken(*token1.Value)
+	if sdk.checkToken(*token2.Value) {
+		log.Debugf("token is OK")
+	} else {
+		log.Debugf("token is KO")
+	}
+	sdk.listProjects()
+	sdk.listDomains()
 	// TODO: the following requires queens
-	// sdk.listSystems()
+	sdk.listSystems()
 
 	sdk.listUsers()
+
+	sdk.readUser("5665e7aa1ce84a0fa5d40a2a3644afc4")
 
 	// token2 is a copy of token1
 	// sdk.deleteToken(*token1.Value)

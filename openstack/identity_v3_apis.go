@@ -409,3 +409,22 @@ func (api *IdentityV3API) CreateUser(opts *CreateUserOptions) (*User, *Result, e
 	}
 	return nil, result, err
 }
+
+// ReadUser retrieves the information about the user identified by the given
+// user id; see also https://developer.openstack.org/api-ref/identity/v3/#show-user-details
+func (api *IdentityV3API) ReadUser(userid string) (*User, *Result, error) {
+	input := &struct {
+		UserID string `parameter:"-" header:"-" variable:"userid" json:"-"`
+	}{
+		UserID: userid,
+	}
+	output := &struct {
+		User *User `header:"-" json:"user,omitempty"`
+	}{}
+	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}", true, input, output)
+	log.Debugf("result is %v (%v)", result, err)
+	if result.Code == 200 {
+		return output.User, result, err
+	}
+	return nil, result, err
+}
