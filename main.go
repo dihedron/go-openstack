@@ -97,12 +97,12 @@ func (os *OpenStack) readToken(tokenValue string) *openstack.Token {
 	log.Debugf("|                          READ TOKEN                               |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	opts := &openstack.ReadTokenOptions{
+	opts := &openstack.RetrieveTokenOptions{
 		AllowExpired: openstack.Bool(true),
 		NoCatalog:    openstack.Bool(false),
 		SubjectToken: tokenValue,
 	}
-	token, result, err := os.client.IdentityV3().ReadToken(opts)
+	token, result, err := os.client.IdentityV3().RetrieveToken(opts)
 	log.Debugf("token is %q\n", *token.Value)
 	log.Debugf("token is\n%s\n", log.ToJSON(token))
 	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
@@ -177,7 +177,7 @@ func (os *OpenStack) getCatalog() *[]openstack.Service {
 	log.Debugf("|                          GET CATALOG                              |")
 	log.Debugf("+-------------------------------------------------------------------+")
 
-	catalog, result, err := os.client.IdentityV3().ReadCatalog()
+	catalog, result, err := os.client.IdentityV3().RetrieveCatalog()
 	log.Debugf("catalog is:\n%s\n", log.ToJSON(catalog))
 	log.Debugf("result is %d (%s)\n", result.Code, result.Status)
 	if err != nil {
@@ -269,7 +269,7 @@ func (os *OpenStack) readUser(userid string) *openstack.User {
 
 	log.Debugf("invoking API...")
 
-	user, result, err := os.client.IdentityV3().ReadUser(userid)
+	user, result, err := os.client.IdentityV3().RetrieveUser(userid)
 	if user != nil {
 		log.Debugf("user: %s", log.ToJSON(user))
 	}
