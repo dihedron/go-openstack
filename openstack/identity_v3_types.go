@@ -20,7 +20,7 @@ type AppCredential struct {
 	ID           *string `json:"id,omitempty"`
 	Name         *string `json:"name,omitempty"`
 	User         *User   `json:"user,omitempty"`
-	Secret       *string `json:"secret,imotempty"`
+	Secret       *string `json:"secret,omitempty"`
 	Description  *string `json:"description,omitempty"`
 	ExpiresAt    *string `json:"expires_at,omitempty"`
 	Roles        *[]Role `json:"roles,omitempty"`
@@ -184,6 +184,7 @@ type User struct {
 	DefaultProjectID  *string `json:"default_project_id,omitempty"`
 	Enabled           *bool   `json:"enabled,omitempty"`
 	Password          *string `json:"password,omitempty"`
+	OldPassword       *string `json:"original_password,omitempty"`
 	PasswordExpiresAt *string `json:"password_expires_at,omitempty"`
 	Description       *string `json:"description,omitempty"`
 	Email             *string `json:"email,omitempty"`

@@ -196,18 +196,18 @@ func (api *IdentityV3API) CreateTokenFromEnv() (*Token, *Result, error) {
  * VALIDATE AND GET TOKEN INFO
  */
 
-// ReadTokenOptions contains the set of parameters and options used to perform the
+// RetrieveTokenOptions contains the set of parameters and options used to perform the
 // validation of a token on the Identity server.
-type ReadTokenOptions struct {
+type RetrieveTokenOptions struct {
 	NoCatalog    *bool  `parameter:"nocatalog,omitempty" header:"-" json:"-"`
 	AllowExpired *bool  `parameter:"allow_expired,omitempty" header:"-" json:"-"`
 	SubjectToken string `parameter:"-" header:"X-Subject-Token" json:"-"`
 }
 
-// ReadToken uses the provided parameters to read the given token and retrieve
+// RetrieveToken uses the provided parameters to read the given token and retrieve
 // information about it from the Identity server; this API requires a valid admin
 // token.
-func (api *IdentityV3API) ReadToken(opts *ReadTokenOptions) (*Token, *Result, error) {
+func (api *IdentityV3API) RetrieveToken(opts *RetrieveTokenOptions) (*Token, *Result, error) {
 	output := &struct {
 		Token        *Token  `parameter:"-" header:"-" json:"token,omitempy"`
 		SubjectToken *string `parameter:"-" header:"X-Subject-Token" json:"-"`
@@ -271,13 +271,13 @@ func (api *IdentityV3API) DeleteToken(opts *DeleteTokenOptions) (bool, *Result, 
 }
 
 /*
- * GET CATALOG
+ * RETRIEVE CATALOG
  */
 
-// ReadCatalog retrieves the catalog associated with the given authorisation
+// RetrieveCatalog retrieves the catalog associated with the given authorisation
 // token; the catalog is returned even if the token was issued withouth a catalog
 // (?nocataog=true).
-func (api *IdentityV3API) ReadCatalog() (*[]Service, *Result, error) {
+func (api *IdentityV3API) RetrieveCatalog() (*[]Service, *Result, error) {
 	output := &struct {
 		Catalog *[]Service `header:"-" json:"catalog,omitempty"`
 		Links   *Links     `header:"-" json:"links,omitempty"`
@@ -411,12 +411,12 @@ func (api *IdentityV3API) CreateUser(opts *CreateUserOptions) (*User, *Result, e
 }
 
 /*
- * READ USER
+ * RETRIEVE USER
  */
 
-// ReadUser retrieves the information about the user identified by the given
+// RetrieveUser retrieves the information about the user identified by the given
 // user id; see also https://developer.openstack.org/api-ref/identity/v3/#show-user-details
-func (api *IdentityV3API) ReadUser(userid string) (*User, *Result, error) {
+func (api *IdentityV3API) RetrieveUser(userid string) (*User, *Result, error) {
 	input := &struct {
 		UserID string `parameter:"-" header:"-" variable:"userid" json:"-"`
 	}{
@@ -474,7 +474,7 @@ func (api *IdentityV3API) DeleteUser(userid string) (bool, *Result, error) {
 	// output := &struct {
 	// 	User *User `header:"-" json:"user,omitempty"`
 	// }{}
-	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}", true, input, nil)
+	result, err := api.Invoke(http.MethodDelete, "./v3/users/{userid}", true, input, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 204 {
 		return true, result, err
@@ -486,9 +486,8 @@ func (api *IdentityV3API) DeleteUser(userid string) (bool, *Result, error) {
  * LIST USER GROUPS
  */
 
+// ListUserGroups list groups to which a user belongs; see also
 // https://developer.openstack.org/api-ref/identity/v3/#list-groups
-// ReadUser retrieves the information about the user identified by the given
-// user id; see also https://developer.openstack.org/api-ref/identity/v3/#show-user-details
 func (api *IdentityV3API) ListUserGroups(userid string) (*[]Group, *Result, error) {
 	input := &struct {
 		UserID string `parameter:"-" header:"-" variable:"userid" json:"-"`
@@ -505,4 +504,153 @@ func (api *IdentityV3API) ListUserGroups(userid string) (*[]Group, *Result, erro
 		return output.Groups, result, err
 	}
 	return nil, result, err
+}
+
+/*
+ * LIST USER PROJECTS
+ */
+
+// ListUserProjects list projects for the given user; see also
+// https://developer.openstack.org/api-ref/identity/v3/#list-projects-for-user
+func (api *IdentityV3API) ListUserProjects(userid string) (*[]Project, *Result, error) {
+	input := &struct {
+		UserID string `parameter:"-" header:"-" variable:"userid" json:"-"`
+	}{
+		UserID: userid,
+	}
+	output := &struct {
+		Projects *[]Project `header:"-" json:"projects,omitempty"`
+		Links    *Links     `header:"-" json:"links,omitempty"`
+	}{}
+	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}/projects", true, input, output)
+	log.Debugf("result is %v (%v)", result, err)
+	if result.Code == 200 {
+		return output.Projects, result, err
+	}
+	return nil, result, err
+}
+
+/*
+ * CHANGE USER PASSWORD
+ */
+
+// ChangeUserPassword changes the password for a user; see also
+// https://developer.openstack.org/api-ref/identity/v3/#change-password-for-user
+func (api *IdentityV3API) ChangeUserPassword(userid, oldPassword, newPassword string) (bool, *Result, error) {
+	input := &struct {
+		UserID string `parameter:"-" header:"-" variable:"userid" json:"-"`
+		User   *User  `parameter:"-" header:"-" variable:"-" json:"user,omitmepty"`
+	}{
+		UserID: userid,
+		User: &User{
+			Password:    String(newPassword),
+			OldPassword: String(oldPassword),
+		},
+	}
+	// note: this call does not require authentication
+	result, err := api.Invoke(http.MethodPost, "./v3/users/{userid}/password", false, input, nil)
+	log.Debugf("result is %v (%v)", result, err)
+	if result.Code == 204 {
+		return true, result, err
+	}
+	return false, result, err
+}
+
+/*
+ * CREATE APPLICATION CREDENTIAL FOR USER
+ */
+
+// CreateUserAppCredentialOptions is the set of options used to create an
+// application credential for the given user.
+type CreateUserAppCredentialOptions struct {
+	UserID        string         `parameter:"-" header:"-" variable:"userid" json:"-"`
+	AppCredential *AppCredential `parameter:"-" header:"-" variable:"-" json:"application_credential"`
+}
+
+// CreateUserAppCredential creates an application credential for a user on the
+// project to which they are currently scoped; see also
+// https://developer.openstack.org/api-ref/identity/v3/#create-application-credential
+func (api *IdentityV3API) CreateUserAppCredential(opts *CreateUserAppCredentialOptions) (*AppCredential, *Result, error) {
+
+	output := &struct {
+		AppCredential *AppCredential `header:"-" json:"projects,omitempty"`
+		Links         *Links         `header:"-" json:"links,omitempty"`
+	}{}
+	result, err := api.Invoke(http.MethodPost, "./v3/users/{userid}/application_credentials", true, opts, output)
+	log.Debugf("result is %v (%v)", result, err)
+	if result.Code == 201 {
+		return output.AppCredential, result, err
+	}
+	return nil, result, err
+}
+
+/*
+ * LIST USER APPLICATION CREDENTIALS
+ */
+
+// ListUserAppCredentials list all application credentials for a user; see also
+// https://developer.openstack.org/api-ref/identity/v3/#list-application-credentials
+func (api *IdentityV3API) ListUserAppCredentials(userid string) (*[]AppCredential, *Result, error) {
+	input := &struct {
+		UserID string `parameter:"-" header:"-" variable:"userid" json:"-"`
+	}{
+		UserID: userid,
+	}
+	output := &struct {
+		AppCredentials *[]AppCredential `header:"-" json:"application_credentials,omitempty"`
+		Links          *Links           `header:"-" json:"links,omitempty"`
+	}{}
+	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}/application_credentials", true, input, output)
+	log.Debugf("result is %v (%v)", result, err)
+	if result.Code == 200 {
+		return output.AppCredentials, result, err
+	}
+	return nil, result, err
+}
+
+/*
+ * RETRIEVE USER APPLICATION CREDENTIAL
+ */
+
+// RetrieveUserAppCredential show details of an application credential; see also
+// https://developer.openstack.org/api-ref/identity/v3/#show-application-credential-details
+func (api *IdentityV3API) RetrieveUserAppCredential(userid, appcredid string) (*AppCredential, *Result, error) {
+	input := &struct {
+		UserID          string `parameter:"-" header:"-" variable:"userid" json:"-"`
+		AppCredentialID string `parameter:"-" header:"-" variable:"appcredid" json:"-"`
+	}{
+		UserID:          userid,
+		AppCredentialID: appcredid,
+	}
+	output := &struct {
+		AppCredential *AppCredential `header:"-" json:"application_credential,omitempty"`
+	}{}
+	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}/application_credentials/{appcredid}", true, input, output)
+	log.Debugf("result is %v (%v)", result, err)
+	if result.Code == 200 {
+		return output.AppCredential, result, err
+	}
+	return nil, result, err
+}
+
+/*
+ * DELETE USER APPLICATION CREDENTIAL
+ */
+
+// DeleteUserAppCredential removes an application credential; see also
+// https://developer.openstack.org/api-ref/identity/v3/#delete-application-credential
+func (api *IdentityV3API) DeleteUserAppCredential(userid, appcredid string) (bool, *Result, error) {
+	input := &struct {
+		UserID          string `parameter:"-" header:"-" variable:"userid" json:"-"`
+		AppCredentialID string `parameter:"-" header:"-" variable:"appcredid" json:"-"`
+	}{
+		UserID:          userid,
+		AppCredentialID: appcredid,
+	}
+	result, err := api.Invoke(http.MethodDelete, "./v3/users/{userid}/application_credentials/{appcredid}", true, input, nil)
+	log.Debugf("result is %v (%v)", result, err)
+	if result.Code == 204 {
+		return true, result, err
+	}
+	return false, result, err
 }
