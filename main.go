@@ -11,6 +11,7 @@ import (
 	"github.com/dihedron/go-openstack/openstack"
 )
 
+
 // OpenStack represents the OpenStack client.
 type OpenStack struct {
 	client *openstack.Client
