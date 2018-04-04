@@ -144,12 +144,18 @@ func (auth *Authenticator) Login(opts *LoginOptions) error {
 		return err
 	}
 
-	log.Debugf("token value is %s, token info is:\n%s\n", *token.Value, log.ToJSON(token))
+	if token != nil {
+		log.Debugf("token value is %s, token info is:\n%s\n", *token.Value, log.ToJSON(token))
 
-	// now store that info inside the current authenticator and start the
-	// background goroutine that will automatically reissue the token when it
-	// is about to expire.
-	auth.SetToken(token)
+		// now store that info inside the current authenticator and start the
+		// background goroutine that will automatically reissue the token when it
+		// is about to expire.
+		auth.SetToken(token)
+
+		log.Debugf("done logging in")
+	} else {
+
+	}
 
 	// // this timer will start 30 seconds before the token is expected to expire
 	// if auth.token.ExpiresAt != nil {
@@ -170,7 +176,6 @@ func (auth *Authenticator) Login(opts *LoginOptions) error {
 	// 	}
 	// }
 
-	log.Debugf("done logging in")
 	return nil
 }
 

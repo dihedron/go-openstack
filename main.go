@@ -11,7 +11,6 @@ import (
 	"github.com/dihedron/go-openstack/openstack"
 )
 
-
 // OpenStack represents the OpenStack client.
 type OpenStack struct {
 	client *openstack.Client
@@ -23,7 +22,8 @@ func newClient() *OpenStack {
 		if len(os.Args) >= 2 {
 			endpoint = os.Args[1]
 		} else {
-			endpoint = "http://192.168.56.101/identity/" // my shiny devstack :-)
+			//endpoint = "http://192.168.56.101/identity/" // my shiny devstack :-)
+			endpoint = "http://10.114.10.1"
 		}
 	}
 	client := &OpenStack{
@@ -296,12 +296,40 @@ func (os *OpenStack) listUserGroups(userid string) *[]openstack.Group {
 	return groups
 }
 
+// func test(output interface{}) {
+// 	if output != nil {
+// 		if reflect.ValueOf(output).Kind() == reflect.String {
+// 			log.Debugf("working with a string (%t)", reflect.ValueOf(output).CanSet())
+// 		} else if reflect.ValueOf(output).Kind() == reflect.Ptr {
+// 			log.Debugf("working with a pointer (%t)", reflect.ValueOf(output).CanSet())
+
+// 			if reflect.ValueOf(output).Elem().Kind() == reflect.String {
+// 				log.Debugf("working with a string pointer (%t)", reflect.ValueOf(output).Elem().CanSet())
+// 				reflect.ValueOf(output).Elem().SetString("changed")
+// 			}
+// 			//item.Elem().FieldByName("Name").Set(reflect.ValueOf(&stringValue))
+// 		} else {
+// 			log.Debugf("working with something else")
+// 		}
+// 	}
+// }
+
 // https://developer.openstack.org/sdks/python/openstacksdk/users/profile.html#openstack.profile.Profile
 func main() {
 
 	log.SetLevel(log.DBG)
 	log.SetStream(os.Stdout, true)
 	log.SetTimeFormat("15:04:05.000")
+
+	// s1 := "a string"
+	// s2 := &s1
+
+	// test(s1)
+	// test(s2)
+
+	// log.Debugf("new value: %q", *s2)
+
+	// os.Exit(0)
 
 	sdk := newClient()
 	//defer sdk.close()

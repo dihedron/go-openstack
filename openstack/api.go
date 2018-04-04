@@ -34,6 +34,24 @@ type API struct {
 	builder *request.Builder
 }
 
+// Checker is used internally by the Invoke method to decide whether the call was
+// successful or it failed.
+type Checker func(response *http.Response) bool
+
+// StatusCodeIn is a factory method that returns a Checker function based on the
+//  HTTP response status codes: if the actual status code is one of the provided
+// "success" values, the check succeeds, otherwise it fails.
+func StatusCodeIn(values ...int) Checker {
+	return func(response *http.Response) bool {
+		for _, value := range values {
+			if value == response.StatusCode {
+				return true
+			}
+		}
+		return false
+	}
+}
+
 // Invoke calls an API endpoint at the given path; if the receiver already has a
 // base path configured, the given "url" can be relative to it; it can also be a
 // full URI; the HTTP "method" identifies the kind of API request. The request
@@ -44,7 +62,7 @@ type API struct {
 // into values stored into the "output" struct according to their tagging:
 // `header` for headers and `json` for body. Both the "input" and the "output"
 // parameters must be structs, or the method panics.
-func (api *API) Invoke(method string, url string, authenticated bool, input interface{}, output interface{}) (*Result, error) {
+func (api *API) Invoke(method string, url string, authenticated bool, checker Checker, input interface{}, output interface{}, failure interface{}) (*Result, error) {
 
 	//log.Debugf("calling method %q on URL %q", method, url)
 
@@ -65,7 +83,15 @@ func (api *API) Invoke(method string, url string, authenticated bool, input inte
 
 	defer response.Body.Close()
 
-	result, err := api.HandleResponse(response, output)
+	var result *Result
+	if checker != nil && checker(response) {
+		log.Debugf("handling response as success")
+		result, err = api.HandleResponse(response, output)
+		result.OK = true
+	} else {
+		log.Debugf("handling response as failure")
+		result, err = api.HandleResponse(response, failure)
+	}
 	if err != nil {
 		log.Errorf("error handling response: %v", err)
 	}
@@ -141,8 +167,15 @@ func (api *API) HandleResponse(response *http.Response, output interface{}) (*Re
 	}
 
 	if output != nil {
+
+		if reflect.ValueOf(output).Kind() == reflect.Ptr && reflect.ValueOf(output).Elem().Kind() == reflect.String {
+			log.Debugf("handling API output as plain string (can set: %t)", reflect.ValueOf(output).Elem().CanSet())
+			reflect.ValueOf(output).Elem().SetString(string(data))
+			return NewResult(response, data), nil
+		}
+
 		if reflect.TypeOf(output).Elem().Kind() != reflect.Struct {
-			panic("only structs can be passed as API output")
+			panic("only structs and *string can be passed as API output")
 		}
 
 		// extract headers into the output struct fields tagged with `header` and

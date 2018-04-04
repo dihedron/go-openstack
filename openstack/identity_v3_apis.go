@@ -117,8 +117,9 @@ func (api *IdentityV3API) CreateToken(opts *CreateTokenOptions) (*Token, *Result
 		Token        *Token  `parameter:"-" header:"-" json:"token,omitempy"`
 	}{}
 
-	result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", opts.Authenticated, input, output)
-	log.Debugf("result is %v (%v)", result, err)
+	failure := String("")
+	result, err := api.Invoke(http.MethodPost, "./v3/auth/tokens", opts.Authenticated, StatusCodeIn(201), input, output, failure)
+	log.Debugf("result is %q (%v, %t)", result, err, result.OK)
 	if output.SubjectToken != nil {
 		output.Token.Value = output.SubjectToken
 	}
@@ -213,7 +214,7 @@ func (api *IdentityV3API) RetrieveToken(opts *RetrieveTokenOptions) (*Token, *Re
 		SubjectToken *string `parameter:"-" header:"X-Subject-Token" json:"-"`
 	}{}
 
-	result, err := api.Invoke(http.MethodGet, "./v3/auth/tokens", true, opts, output)
+	result, err := api.Invoke(http.MethodGet, "./v3/auth/tokens", true, StatusCodeIn(200), opts, output, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		output.Token.Value = output.SubjectToken
@@ -240,7 +241,7 @@ type CheckTokenOptions struct {
 // information about it from the Identity server; this API requires a valid admin
 // token.
 func (api *IdentityV3API) CheckToken(opts *CheckTokenOptions) (bool, *Result, error) {
-	result, err := api.Invoke(http.MethodHead, "./v3/auth/tokens", true, opts, nil)
+	result, err := api.Invoke(http.MethodHead, "./v3/auth/tokens", true, StatusCodeIn(200), opts, nil, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 || result.Code == 204 {
 		return true, result, err
@@ -262,7 +263,8 @@ type DeleteTokenOptions struct {
 // is immediately invalid regardless of the value in the expires_at attribute;
 // this API requires a valid admin token.
 func (api *IdentityV3API) DeleteToken(opts *DeleteTokenOptions) (bool, *Result, error) {
-	result, err := api.Invoke(http.MethodDelete, "./v3/auth/tokens", true, opts, nil)
+	// TODO: Docs state it's a 201 (created) upon success, weird! Shouldn't it be 204?
+	result, err := api.Invoke(http.MethodDelete, "./v3/auth/tokens", true, StatusCodeIn(201), opts, nil, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 || result.Code == 204 {
 		return true, result, err
@@ -283,7 +285,7 @@ func (api *IdentityV3API) RetrieveCatalog() (*[]Service, *Result, error) {
 		Links   *Links     `header:"-" json:"links,omitempty"`
 	}{}
 
-	result, err := api.Invoke(http.MethodGet, "./v3/auth/catalog", true, nil, output)
+	result, err := api.Invoke(http.MethodGet, "./v3/auth/catalog", true, StatusCodeIn(200), nil, output, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.Catalog, result, err
@@ -304,7 +306,7 @@ func (api *IdentityV3API) ListProjects() (*[]Project, *Result, error) {
 		Links    *Links     `header:"-" json:"links,omitempty"`
 	}{}
 
-	result, err := api.Invoke(http.MethodGet, "./v3/auth/projects", true, nil, output)
+	result, err := api.Invoke(http.MethodGet, "./v3/auth/projects", true, StatusCodeIn(200), nil, output, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.Projects, result, err
@@ -325,7 +327,7 @@ func (api *IdentityV3API) ListDomains() (*[]Domain, *Result, error) {
 		Links   *Links    `header:"-" json:"links,omitempty"`
 	}{}
 
-	result, err := api.Invoke(http.MethodGet, "./v3/auth/domains", true, nil, output)
+	result, err := api.Invoke(http.MethodGet, "./v3/auth/domains", true, StatusCodeIn(200), nil, output, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.Domains, result, err
@@ -345,7 +347,7 @@ func (api *IdentityV3API) ListSystems() (*[]System, *Result, error) {
 		Links   *Links    `header:"-" json:"links,omitempty"`
 	}{}
 
-	result, err := api.Invoke(http.MethodGet, "./v3/auth/system", true, nil, output)
+	result, err := api.Invoke(http.MethodGet, "./v3/auth/system", true, StatusCodeIn(200), nil, output, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.Systems, result, err
@@ -377,7 +379,7 @@ func (api *IdentityV3API) ListUsers(opts *ListUsersOptions) (*[]User, *Result, e
 		Links *Links  `header:"-" json:"links,omitempty"`
 	}{}
 
-	result, err := api.Invoke(http.MethodGet, "./v3/users", true, opts, output)
+	result, err := api.Invoke(http.MethodGet, "./v3/users", true, StatusCodeIn(200), opts, output, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.Users, result, err
@@ -402,7 +404,7 @@ func (api *IdentityV3API) CreateUser(opts *CreateUserOptions) (*User, *Result, e
 		User *User `header:"-" json:"user,omitempty"`
 	}{}
 
-	result, err := api.Invoke(http.MethodPost, "./v3/users", true, opts, output)
+	result, err := api.Invoke(http.MethodPost, "./v3/users", true, StatusCodeIn(201), opts, output, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 201 {
 		return output.User, result, err
@@ -425,7 +427,7 @@ func (api *IdentityV3API) RetrieveUser(userid string) (*User, *Result, error) {
 	output := &struct {
 		User *User `header:"-" json:"user,omitempty"`
 	}{}
-	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}", true, input, output)
+	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}", true, StatusCodeIn(200), input, output, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.User, result, err
@@ -451,7 +453,7 @@ func (api *IdentityV3API) UpdateUser(opts *UpdateUserOptions) (*User, *Result, e
 		User *User `header:"-" json:"user,omitempty"`
 	}{}
 
-	result, err := api.Invoke(http.MethodPatch, "./v3/users/{userid}", true, opts, output)
+	result, err := api.Invoke(http.MethodPatch, "./v3/users/{userid}", true, StatusCodeIn(200), opts, output, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.User, result, err
@@ -474,7 +476,7 @@ func (api *IdentityV3API) DeleteUser(userid string) (bool, *Result, error) {
 	// output := &struct {
 	// 	User *User `header:"-" json:"user,omitempty"`
 	// }{}
-	result, err := api.Invoke(http.MethodDelete, "./v3/users/{userid}", true, input, nil)
+	result, err := api.Invoke(http.MethodDelete, "./v3/users/{userid}", true, StatusCodeIn(200), input, nil, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 204 {
 		return true, result, err
@@ -498,7 +500,7 @@ func (api *IdentityV3API) ListUserGroups(userid string) (*[]Group, *Result, erro
 		Groups *[]Group `header:"-" json:"groups,omitempty"`
 		Links  *Links   `header:"-" json:"links,omitempty"`
 	}{}
-	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}/groups", true, input, output)
+	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}/groups", true, StatusCodeIn(200), input, output, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.Groups, result, err
@@ -522,7 +524,7 @@ func (api *IdentityV3API) ListUserProjects(userid string) (*[]Project, *Result, 
 		Projects *[]Project `header:"-" json:"projects,omitempty"`
 		Links    *Links     `header:"-" json:"links,omitempty"`
 	}{}
-	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}/projects", true, input, output)
+	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}/projects", true, StatusCodeIn(200), input, output, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.Projects, result, err
@@ -548,7 +550,7 @@ func (api *IdentityV3API) ChangeUserPassword(userid, oldPassword, newPassword st
 		},
 	}
 	// note: this call does not require authentication
-	result, err := api.Invoke(http.MethodPost, "./v3/users/{userid}/password", false, input, nil)
+	result, err := api.Invoke(http.MethodPost, "./v3/users/{userid}/password", false, StatusCodeIn(201), input, nil, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 204 {
 		return true, result, err
@@ -576,7 +578,7 @@ func (api *IdentityV3API) CreateUserAppCredential(opts *CreateUserAppCredentialO
 		AppCredential *AppCredential `header:"-" json:"projects,omitempty"`
 		Links         *Links         `header:"-" json:"links,omitempty"`
 	}{}
-	result, err := api.Invoke(http.MethodPost, "./v3/users/{userid}/application_credentials", true, opts, output)
+	result, err := api.Invoke(http.MethodPost, "./v3/users/{userid}/application_credentials", true, StatusCodeIn(201), opts, output, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 201 {
 		return output.AppCredential, result, err
@@ -600,7 +602,7 @@ func (api *IdentityV3API) ListUserAppCredentials(userid string) (*[]AppCredentia
 		AppCredentials *[]AppCredential `header:"-" json:"application_credentials,omitempty"`
 		Links          *Links           `header:"-" json:"links,omitempty"`
 	}{}
-	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}/application_credentials", true, input, output)
+	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}/application_credentials", true, StatusCodeIn(200), input, output, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.AppCredentials, result, err
@@ -625,7 +627,7 @@ func (api *IdentityV3API) RetrieveUserAppCredential(userid, appcredid string) (*
 	output := &struct {
 		AppCredential *AppCredential `header:"-" json:"application_credential,omitempty"`
 	}{}
-	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}/application_credentials/{appcredid}", true, input, output)
+	result, err := api.Invoke(http.MethodGet, "./v3/users/{userid}/application_credentials/{appcredid}", true, StatusCodeIn(200), input, output, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 200 {
 		return output.AppCredential, result, err
@@ -647,7 +649,7 @@ func (api *IdentityV3API) DeleteUserAppCredential(userid, appcredid string) (boo
 		UserID:          userid,
 		AppCredentialID: appcredid,
 	}
-	result, err := api.Invoke(http.MethodDelete, "./v3/users/{userid}/application_credentials/{appcredid}", true, input, nil)
+	result, err := api.Invoke(http.MethodDelete, "./v3/users/{userid}/application_credentials/{appcredid}", true, StatusCodeIn(200), input, nil, nil)
 	log.Debugf("result is %v (%v)", result, err)
 	if result.Code == 204 {
 		return true, result, err

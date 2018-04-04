@@ -11,6 +11,7 @@ import (
 
 // Result represents in compact form the result of an HTTP API call.
 type Result struct {
+	OK          bool
 	Code        int
 	Status      string
 	Description string
