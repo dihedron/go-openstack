@@ -12,3 +12,4 @@ For instance, as of today support for multiple authenticators seems like an unne
 __This SDK is focussing on the latest version of the API.__ No backward compatibility so far.
 
 NOTE: I have just started woking on this: it will take some time before it can be used for anything serious. At the moment only part of the OpenStack Identity V3 API is implemented.
+
